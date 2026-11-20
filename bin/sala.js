@@ -4,18 +4,26 @@
 const path = require('node:path');
 const { loadConfig, ConfigError } = require('../src/config');
 const { estado, estadoTexto } = require('../src/estado');
+const { plan, planTexto } = require('../src/plan');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
 
 Uso:
   sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo
+  sala plan [--texto] [--sala <carpeta>]     por miembro: lo que está en curso, la siguiente tarea lista
+                                             y lo que espera, con el motivo
 
 Opciones:
   --texto            salida para leer, en vez de JSON
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
   --version          la versión del kit
 `;
+
+const COMMANDS = {
+  estado: { run: estado, texto: estadoTexto },
+  plan: { run: plan, texto: planTexto },
+};
 
 function fail(error, details) {
   process.stderr.write(`${JSON.stringify(details ? { error, details } : { error })}\n`);
@@ -43,9 +51,10 @@ async function main() {
     opts = parseArgs(process.argv.slice(2));
     if (opts.command === '--version') return void process.stdout.write(`${version}\n`);
     if (!opts.command || opts.command === '--help' || opts.command === '-h') return void process.stdout.write(HELP);
-    if (opts.command !== 'estado') return fail(`subcomando desconocido: ${opts.command}`);
-    const result = await estado(loadConfig(opts.sala));
-    process.stdout.write(opts.texto ? estadoTexto(result) : `${JSON.stringify(result)}\n`);
+    const command = COMMANDS[opts.command];
+    if (!command) return fail(`subcomando desconocido: ${opts.command}`);
+    const result = await command.run(loadConfig(opts.sala));
+    process.stdout.write(opts.texto ? command.texto(result) : `${JSON.stringify(result)}\n`);
   } catch (err) {
     if (err instanceof ConfigError) return fail(err.message, err.details);
     throw err;

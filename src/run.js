@@ -38,4 +38,10 @@ function firstLine(text) {
   return String(text).split(/\r?\n/).map((l) => l.trim()).find(Boolean) || 'sin detalle';
 }
 
-module.exports = { run, redact, firstLine };
+// The meaningful line of a git error, without its `fatal:` or `error:` prefix.
+function gitError(stderr) {
+  const lines = String(stderr).split(/\r?\n/);
+  return firstLine(lines.find((l) => /^(fatal|error):/.test(l)) || stderr).replace(/^(fatal|error):\s*/, '');
+}
+
+module.exports = { run, redact, firstLine, gitError };

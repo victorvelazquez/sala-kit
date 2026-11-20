@@ -2,7 +2,7 @@
 
 El motor reutilizable de una **sala**: una sesión de Gentle Shell que coordina varios repositorios (los **miembros**) mientras una persona decide.
 
-> Estado: **fase 1**. La CLI `sala` tiene su primer subcomando, `sala estado`.
+> Estado: **fase 1**. La CLI `sala` tiene `sala estado` y `sala plan`.
 
 ## La idea en tres piezas
 
@@ -67,6 +67,29 @@ brand  NO LISTO  feat: está en la rama feat, no en la base develop
 ```
 
 Un miembro que falla (la carpeta no existe, el `fetch` no llega, `gh` no tiene sesión) no frena a los demás: queda como motivo. Git y `gh` corren sin shell y sin pedir credenciales, y las credenciales de una URL o un token nunca salen en la salida.
+
+## `sala plan`
+
+```
+sala plan [--texto] [--sala <carpeta>]
+```
+
+Por cada miembro lee su `docs/ROADMAP.md` (formato de Orquestación 1.0) de la rama base **remota**, después de un `git fetch`: cuenta lo fusionado, no el árbol de trabajo. Devuelve:
+
+- `inProgress`: las filas `En curso`;
+- `next`: la primera fila `Pendiente` cuyas dependencias están `Completada`, con cada dependencia resuelta;
+- `blocked`: las filas `Bloqueada`, con su nota, y las `Pendiente` anteriores a `next` que esperan, con el motivo;
+- `done` y `total`: las filas completadas y todas.
+
+Una dependencia es una fila del mismo roadmap, una fila de otro miembro con su prefijo (`CORE-E09` busca la fila `E09`, o `CORE-E09`, en el roadmap del miembro con prefijo `CORE`) o, si no es ninguna de las dos, informativa: se muestra y no bloquea. Una dependencia con prefijo que no se encuentra sale como «sin resolver», nunca se adivina. Las dependencias de otro miembro **sí bloquean** en el plan de la sala. Los textos largos se cortan en 100 caracteres para que el plan de toda la sala quede en unos 2 KB.
+
+```
+Sala upen
+core (1/4 completadas)
+  en curso:  E02 Entrega E02
+  siguiente: E04 Entrega E04
+  espera:    E03 Entrega E03: espera a E02 (En curso)
+```
 
 ## Documentos
 
