@@ -2,17 +2,12 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { run, redact, firstLine } = require('./run');
+const { run, redact, firstLine, gitError } = require('./run');
 
 const OUTPUT_SCHEMA = 1;
 
 function plural(n, one, many) {
   return `${n} ${n === 1 ? one : many}`;
-}
-
-function gitError(stderr) {
-  const lines = String(stderr).split(/\r?\n/);
-  return firstLine(lines.find((l) => /^(fatal|error):/.test(l)) || stderr).replace(/^(fatal|error):\s*/, '');
 }
 
 function countChanges(porcelain) {
