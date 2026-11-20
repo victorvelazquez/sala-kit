@@ -34,6 +34,29 @@ function memberRepo(root, name, base = 'main') {
   return { remote, work };
 }
 
+function roadmap(rows) {
+  return [
+    '# Hoja de ruta',
+    '',
+    '| ID | Entrega | Resultado visible | Depende de | Estado | Notas | Ficha |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...rows.map(([id, deps, estado, notas = '']) => `| ${id} | Entrega ${id} | Se ve | ${deps} | ${estado} | ${notas} | — |`),
+    '',
+  ].join('\n');
+}
+
+function pushRoadmap(work, text) {
+  fs.mkdirSync(path.join(work, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(work, 'docs', 'ROADMAP.md'), text);
+  git(work, 'add', 'docs/ROADMAP.md');
+  git(work, 'commit', '--quiet', '-m', 'roadmap');
+  git(work, 'push', '--quiet', 'origin', 'main');
+}
+
+function member(id, prefix, work) {
+  return { id, prefix, path: work, base: 'main' };
+}
+
 function writeSala(dir, config) {
   fs.writeFileSync(path.join(dir, 'sala.json'), JSON.stringify(config, null, 2));
 }
@@ -54,4 +77,4 @@ function runSala(cwd, args, env = {}) {
   return { code: res.status, stdout: res.stdout, stderr: res.stderr };
 }
 
-module.exports = { tempDir, git, memberRepo, writeSala, salaConfig, runSala };
+module.exports = { tempDir, git, memberRepo, roadmap, pushRoadmap, member, writeSala, salaConfig, runSala };

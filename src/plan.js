@@ -1,20 +1,13 @@
 'use strict';
 
 const fs = require('node:fs');
-const { run, redact, gitError } = require('./run');
+const { run, gitError } = require('./run');
 const { parseRoadmap } = require('./roadmap');
+const { openPrs } = require('./estado');
+const { short, findDep, buildQueue, queueTexto } = require('./queue');
 
 const OUTPUT_SCHEMA = 1;
 const ROADMAP = 'docs/ROADMAP.md';
-const MAX_TEXT = 100;
-// A dependency on another member: its prefix, a dash and the row ID (CORE-E09).
-const CROSS = /^([A-Z][A-Z0-9]*)-(\S+)$/;
-
-// Long cells are cut so the plan of a whole sala stays around 2 KB.
-function short(text) {
-  const clean = redact(text);
-  return clean.length > MAX_TEXT ? `${clean.slice(0, MAX_TEXT - 1)}…` : clean;
-}
 
 // The roadmap of the remote base after a fetch: what is merged, not the working tree.
 async function readRoadmap(member) {
@@ -30,16 +23,10 @@ async function readRoadmap(member) {
 
 // Each dependency is a row of the member, a prefixed row of another member, or informative.
 function resolve(dep, own, byPrefix) {
-  const row = own.rows.find((r) => r.id === dep);
-  if (row) return { id: dep, estado: row.estado };
-  const match = CROSS.exec(dep);
-  if (!match) return { id: dep, informative: true };
-  const target = byPrefix.get(match[1]);
-  if (!target) return { id: dep, unresolved: `dependencia sin resolver: ${dep}` };
-  if (target.read.error) return { id: dep, unresolved: `no se pudo leer el miembro ${target.id} de ${dep}` };
-  const found = target.read.rows.find((r) => r.id === match[2] || r.id === dep);
-  if (!found) return { id: dep, unresolved: `dependencia sin resolver: ${dep}` };
-  return { id: dep, member: target.id, estado: found.estado };
+  const f = findDep(dep, own, byPrefix);
+  if (f.unresolved) return { id: dep, unresolved: f.unresolved };
+  if (f.informative) return { id: dep, informative: true };
+  return f.cross ? { id: dep, member: f.member.id, estado: f.row.estado } : { id: dep, estado: f.row.estado };
 }
 
 function waitReason(d) {
@@ -65,7 +52,7 @@ function planMember(m, byPrefix) {
     else if (row.estado === 'Bloqueada') {
       out.blocked.push({ ...task, reasons: [row.notas ? `Bloqueada: ${short(row.notas)}` : 'Bloqueada'] });
     } else if (row.estado === 'Pendiente') {
-      const deps = row.deps.map((d) => resolve(d, read, byPrefix));
+      const deps = row.deps.map((d) => resolve(d, m, byPrefix));
       const reasons = deps.map(waitReason).filter(Boolean);
       if (reasons.length === 0 && !out.next) out.next = { ...task, deps };
       else if (reasons.length > 0 && !out.next) out.blocked.push({ ...task, reasons });
@@ -74,11 +61,22 @@ function planMember(m, byPrefix) {
   return out;
 }
 
+// The open pull requests tell which tasks are in review; a missing folder has none to read.
+async function readMember(member) {
+  const exists = fs.existsSync(member.path);
+  const [read, prs] = await Promise.all([readRoadmap(member), exists ? openPrs(member.path) : { prs: null }]);
+  return { id: member.id, prefix: member.prefix, read, ...prs };
+}
+
 async function plan(config) {
-  const read = await Promise.all(config.members.map(readRoadmap));
-  const members = config.members.map((m, i) => ({ id: m.id, prefix: m.prefix, read: read[i] }));
+  const members = await Promise.all(config.members.map(readMember));
   const byPrefix = new Map(members.map((m) => [m.prefix, m]));
-  return { schema: OUTPUT_SCHEMA, sala: config.name, members: members.map((m) => planMember(m, byPrefix)) };
+  return {
+    schema: OUTPUT_SCHEMA,
+    sala: config.name,
+    members: members.map((m) => planMember(m, byPrefix)),
+    queue: buildQueue(members, byPrefix, config.pinned),
+  };
 }
 
 function planTexto(result) {
@@ -93,6 +91,7 @@ function planTexto(result) {
     if (m.next) lines.push(`  siguiente: ${m.next.id} ${m.next.entrega}`);
     for (const t of m.blocked) lines.push(`  espera:    ${t.id} ${t.entrega}: ${t.reasons.join('; ')}`);
   }
+  lines.push(...queueTexto(result.queue));
   return `${lines.join('\n')}\n`;
 }
 
