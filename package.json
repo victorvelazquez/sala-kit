@@ -1,0 +1,30 @@
+{
+  "name": "sala-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reusable kit for a coordinating room: one agent session that plans, sends orders to and merges across several git repos while a person decides.",
+  "type": "commonjs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "gentle-shell",
+    "orchestration",
+    "git"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "pi": {
+    "prompts": [
+      "./prompts/*.md"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "extensions": []
+  }
+}
