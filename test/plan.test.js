@@ -4,30 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { tempDir, git, memberRepo, writeSala, salaConfig, runSala } = require('./helpers');
-
-function roadmap(rows) {
-  return [
-    '# Hoja de ruta',
-    '',
-    '| ID | Entrega | Resultado visible | Depende de | Estado | Notas | Ficha |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
-    ...rows.map(([id, deps, estado, notas = '']) => `| ${id} | Entrega ${id} | Se ve | ${deps} | ${estado} | ${notas} | — |`),
-    '',
-  ].join('\n');
-}
-
-function pushRoadmap(work, text) {
-  fs.mkdirSync(path.join(work, 'docs'), { recursive: true });
-  fs.writeFileSync(path.join(work, 'docs', 'ROADMAP.md'), text);
-  git(work, 'add', 'docs/ROADMAP.md');
-  git(work, 'commit', '--quiet', '-m', 'roadmap');
-  git(work, 'push', '--quiet', 'origin', 'main');
-}
-
-function member(id, prefix, work) {
-  return { id, prefix, path: work, base: 'main' };
-}
+const {
+  tempDir, git, memberRepo, roadmap, pushRoadmap, member, writeSala, salaConfig, runSala,
+} = require('./helpers');
 
 function twoMembers(t) {
   const dir = tempDir(t);
@@ -55,7 +34,9 @@ test('per member: in progress, next ready task and what waits, with cross-member
 
   assert.equal(res.code, 0, res.stderr);
   assert.equal(res.stderr, '');
-  assert.deepEqual(JSON.parse(res.stdout), {
+  const { queue, ...rest } = JSON.parse(res.stdout);
+  assert.ok(queue);
+  assert.deepEqual(rest, {
     schema: 1,
     sala: 'prueba',
     members: [
@@ -150,6 +131,11 @@ test('--texto prints the plan for reading', (t) => {
     '  siguiente: B2 Entrega B2',
     '  espera:    B1 Entrega B1: espera a CORE-E03 (Pendiente, en core)',
     '  espera:    B3 Entrega B3: Bloqueada: Falta el logo',
+    'Cola',
+    '  ola 1: core E02 [en curso] · brand B2',
+    '  ola 2: core E03 (espera a E02)',
+    '  ola 3: core E04 · brand B1 (espera a CORE-E03)',
+    '  espera: brand B3: Bloqueada: Falta el logo',
     '',
   ].join('\n'));
 });

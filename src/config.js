@@ -4,11 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const SCHEMA = 1;
-const TOP_KEYS = ['schema', 'kit', 'name', 'members', 'options'];
+const TOP_KEYS = ['schema', 'kit', 'name', 'members', 'pinned', 'options'];
 const MEMBER_KEYS = ['id', 'prefix', 'path', 'base', 'remote'];
 const OPTION_KEYS = ['language', 'jira', 'transport', 'roomModel'];
 const ID = /^[a-z0-9][a-z0-9-]*$/;
 const PREFIX = /^[A-Z][A-Z0-9]*$/;
+// A task of a member: its prefix, a dash and the row ID (CORE-E09).
+const TASK = /^([A-Z][A-Z0-9]*)-(\S+)$/;
 // A remote name, never a URL: a URL could carry credentials into the output.
 const REMOTE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 // A branch name: it goes to git as an argument, so it never starts with `-`.
@@ -49,6 +51,23 @@ function validateMember(m, i, seen, errors) {
   }
 }
 
+// Tasks the person puts ahead in the queue; the order of the list is their priority.
+function validatePinned(pinned, prefixes, errors) {
+  if (pinned === undefined) return;
+  if (!Array.isArray(pinned)) {
+    errors.push('pinned: debe ser una lista de IDs, por ejemplo ["CORE-E09"]');
+    return;
+  }
+  const seen = new Set();
+  pinned.forEach((id, i) => {
+    const match = typeof id === 'string' ? TASK.exec(id) : null;
+    if (!match) errors.push(`pinned[${i}]: debe ser un ID con el prefijo de un miembro, por ejemplo CORE-E09`);
+    else if (!prefixes.has(match[1])) errors.push(`pinned[${i}]: no hay un miembro con el prefijo ${match[1]}`);
+    else if (seen.has(id)) errors.push(`pinned[${i}]: «${id}» está repetido`);
+    else seen.add(id);
+  });
+}
+
 function validateOptions(o, errors) {
   if (o === undefined) return;
   if (!o || typeof o !== 'object' || Array.isArray(o)) {
@@ -79,12 +98,14 @@ function validateConfig(raw) {
   } else {
     const seen = { ids: new Set(), prefixes: new Set() };
     raw.members.forEach((m, i) => validateMember(m, i, seen, errors));
+    validatePinned(raw.pinned, seen.prefixes, errors);
   }
   validateOptions(raw.options, errors);
   if (errors.length) return { errors, config: null };
   const config = {
     ...raw,
     members: raw.members.map((m) => ({ ...m, remote: m.remote || 'origin' })),
+    pinned: raw.pinned || [],
     options: { ...(raw.options || {}) },
   };
   return { errors, config };
