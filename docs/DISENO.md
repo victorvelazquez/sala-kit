@@ -204,3 +204,24 @@ Salen de dos revisiones de solo lectura: el proyecto `escritorio-ia-kit` y cómo
 - su tablero visual, que duplica repo-panel;
 - el runner para varios proveedores;
 - verificar respuestas del modelo con expresiones regulares como prueba principal: el veredicto sigue siendo determinista (D16).
+
+## Decisiones de la tercera ronda (2026-11-20)
+
+- **D45. La cola de la sala.** Es una lista única con las tareas pendientes de todos los miembros, en el orden en que la sala las va a ejecutar, agrupada en **olas**. Una ola es lo que puede correr en paralelo.
+  - **Se calcula, nunca se guarda.** No hay archivo que sincronizar, así que no se puede desactualizar como `TABLERO.md`. Se recalcula en el plan del día, después de cada `sala fusionar` y cada vez que el panel refresca. Es mecánica, sin modelo; el modelo lee solo el resultado, unos 2 KB.
+  - **Las fuentes**, de más fuerte a más débil:
+    1. las dependencias: las de dentro del repo, con IDs de su tabla, y las de otro miembro, con prefijo (`CORE-E09`);
+    2. el orden de las filas dentro de cada roadmap;
+    3. la prioridad entre miembros, escrita en `sala.json`: el orden de `members` y una lista opcional de tareas fijadas adelante. Es lo único manual, y es intención de la persona, no estado.
+  - **Qué cuenta como hecho.** El roadmap se lee de la rama base remota, después del mismo `fetch` de `sala estado`. Una tarea está hecha cuando su fila dice `Completada` **ahí**. Lo que está en vuelo (una rama o un PR con el ID) sale «en revisión», no hecho, así la cola no adelanta trabajo sin fusionar.
+  - **Un miembro, una tarea por ola**, porque cada miembro tiene una sola sesión y una sola rama a la vez (D29).
+  - **Lo que no avanza sale con su motivo**:
+    - espera a otra tarea, con el ID;
+    - `Bloqueada`, con su nota;
+    - espera a la persona;
+    - dependencia sin resolver, por ejemplo un ID mal escrito;
+    - ciclo de dependencias;
+    - miembro que no se pudo leer.
+  - **Salida.** `sala plan` suma el campo `queue` con las olas, y cada elemento lleva el miembro, el ID, la entrega, lo que espera y el motivo. Con `--texto`, una línea por ola.
+  - **Dónde se ve.** En la terminal, como texto. La vista visual es de repo-panel, en Rooms, dentro de su replanteo (RP255). En Gentle Shell no va un widget: lo decidió la persona el 2026-11-20, porque las visualizaciones van al panel.
+  - **El riesgo que queda: un PR que se fusiona sin marcar su fila `Completada`.** Lo cubre `sala veredicto` (D16): después de entregar, comprueba que la fila de la tarea del PR diga `Completada` y, si no, lo avisa antes de fusionar.
