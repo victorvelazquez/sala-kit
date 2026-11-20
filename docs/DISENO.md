@@ -85,9 +85,9 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 | Adaptador | Puerto | Cuándo |
 |---|---|---|
-| **feed** de Gentle Shell (`desktop-feed/v1`) | feed | Siempre, para toda sesión |
-| **Orca**: `orca terminal create --worktree path:<miembro> --title <miembro> --command gentle-shell`, `switch` y `close` | lanzador | Por defecto. La terminal se abre dentro del proyecto que el repo ya tiene en Orca |
-| **Windows Terminal**: `wt -w 0 new-tab -d <miembro> --title <miembro> gentle-shell` | lanzador | Si no hay Orca. Abre una pestaña más en la ventana que ya está abierta |
+| **feed** de Gentle Shell (`desktop-feed/v1`) | feed | Siempre, para toda sesión. Ojo (SK2a): la política de seguridad de Gentle AI bloquea leer `~/.gentle-shell/agent/desktop` desde la sesión del agente; cómo se lee de forma permitida se decide antes de SK2f |
+| **Orca**: `orca terminal create --worktree path:<miembro> --title <miembro> --command gentle-shell`, `switch` y `close` | lanzador | Por defecto. La terminal se abre dentro del proyecto que el repo ya tiene en Orca (comprobado en SK2a: unos 2 s, arranca en PowerShell; después de `close`, `show` sigue respondiendo con `connected: false`, así que la sesión viva se mira con `list`) |
+| **Windows Terminal**: `wt -w 0 new-tab -d <miembro> --title <miembro> gentle-shell` | lanzador | Si no hay Orca. Debería abrir una pestaña más en la ventana abierta, pero en SK2a abrió una ventana nueva: falta confirmar si había una abierta |
 | **RPC de pi**: sesiones sin pantalla que hospeda el propio kit (SK7) | los dos | Opcional, más adelante. Es el único que contesta todas las clases de pregunta |
 
   `options.launcher` en `sala.json` vale `auto` (Orca si responde, si no Windows Terminal), `orca` o `wt`. **El kit no depende de repo-panel**: funciona en terminal pura o con Orca, y el panel es una capa superior que consume el kit (D30), nunca al revés.
@@ -178,12 +178,12 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 | Qué | Por qué importa | Dónde se comprueba |
 |---|---|---|
-| Que Gentle Shell despierte a una sala **ociosa** cuando termina un trabajo en segundo plano. Se vio en medio de un turno, no ociosa | `sala esperar` depende de eso (D15) | SK2a |
-| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question` | D13 y D17 | SK2a |
-| Que `orca terminal create --worktree` abra la terminal dentro del proyecto de Orca, y cómo responden `switch` y `close` | D14 y D29 | SK2a |
-| Cómo se ve `ask_user_choice` en la terminal de Orca. Se midió por RPC en RP237, no en la terminal | D17 | SK2a |
+| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question`. En SK2a no se pudo medir: la política de seguridad bloquea la carpeta del feed. Antes, decidir con la persona cómo se lee de forma permitida | D13, D17 y D46 | SK2f |
+| Que `wt -w 0 new-tab` abra una pestaña en la ventana abierta. En SK2a abrió una ventana nueva | D14 | SK2b |
 | Por qué falla el `git fetch` dentro de `estado-vivo.sh` | Que `sala estado` no repita el error | SK1a |
 | Que `apply_profile` por la bandeja ligue el perfil solo a esa sesión. Resuelve la duda anterior de pasar un modelo por parámetro | D28 | SK3c |
+
+Comprobado en SK2a ([informe](MEDICIONES-SK2a.md)): una sala ociosa se despierta cuando termina su trabajo en segundo plano (D15); `orca terminal create --worktree`, `switch` y `close` funcionan dentro del proyecto de Orca (D14 y D29); y `ask_user_choice` se ve y se elige bien en la terminal de Orca (D17).
 
 ## Decisiones de la segunda ronda (2026-11-20)
 
