@@ -74,24 +74,34 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 ## Mandar órdenes a los miembros
 
-- **D13.** `sala enviar` siempre:
-  - busca la sesión del miembro en el estado vivo;
-  - comprueba que esté esperando entrada y **se niega si está trabajando**;
-  - manda el texto tal cual, sin la traducción de rutas de Git Bash;
-  - anota la orden en el estado vivo.
-- **D14.** **Capa de transporte con adaptadores.** El núcleo solo conoce cuatro operaciones: abrir sesión, enviar, leer y esperar. Nunca llama a Orca directamente.
+- **D13.** `sala enviar` manda por la bandeja del feed (`send_prompt`, D46). Las guardas son dos capas:
+  - **las de Gentle Shell**, que la bandeja ya aplica: se niega con una pregunta abierta; guarda el mensaje mientras la sesión compacta; rechaza los comandos que solo corren en la terminal (`/gentle:*`, `/new`, `/quit`, las líneas `!`). Las plantillas, como `/flow-ship` y `/miembro-*`, pasan. Un mensaje de la sala nunca cuenta como consentimiento de la persona;
+  - **las del kit**: la sala en pausa (D38), el miembro existe en `sala.json` y tiene una sesión viva que es suya, y la orden queda en el registro.
 
-| Adaptador | Cuándo | ¿Orca? |
+  Al no tipear en una terminal, desaparece el problema de Git Bash con la `/`.
+- **D14.** **Capa de transporte en dos puertos.** El núcleo nunca llama a una herramienta directamente:
+  - **el lanzador** abre, muestra y cierra la terminal de una sesión;
+  - **el feed** mira, espera, manda órdenes y contesta preguntas simples (D46).
+
+| Adaptador | Puerto | Cuándo |
 |---|---|---|
-| **Orca**: terminales visibles (`orca terminal create/send/read`) | Primero, porque está probado | Sí |
-| **RPC de pi**: el que repo-panel ya usa en `server/rpchost.js` | Cuando el panel integre el kit (D30) | No |
-| **Zellij** | Opcional, terminal sin Orca | No |
+| **feed** de Gentle Shell (`desktop-feed/v1`) | feed | Siempre, para toda sesión |
+| **Orca**: `orca terminal create --worktree path:<miembro> --title <miembro> --command gentle-shell`, `switch` y `close` | lanzador | Por defecto. La terminal se abre dentro del proyecto que el repo ya tiene en Orca |
+| **Windows Terminal**: `wt -w 0 new-tab -d <miembro> --title <miembro> gentle-shell` | lanzador | Si no hay Orca. Abre una pestaña más en la ventana que ya está abierta |
+| **RPC de pi**: sesiones sin pantalla que hospeda el propio kit (SK7) | los dos | Opcional, más adelante. Es el único que contesta todas las clases de pregunta |
 
-- **D15.** **No se usa el correo de orquestación de Orca** (`run-create`, `worker-start`, `inbox`). En el piloto, el coordinador tenía que ser una terminal de Orca, `--agent pi` no está configurado y `orca terminal wait --for tui-idle` dio la sesión por ociosa mientras seguía trabajando. `sala esperar` vigila en cambio **el archivo de sesión de pi** del miembro, donde queda el fin de cada turno. La sala lo corre como trabajo en segundo plano de Gentle Shell y **duerme sin gastar tokens** hasta que el script termina y la despierta.
+  `options.launcher` en `sala.json` vale `auto` (Orca si responde, si no Windows Terminal), `orca` o `wt`. **El kit no depende de repo-panel**: funciona en terminal pura o con Orca, y el panel es una capa superior que consume el kit (D30), nunca al revés.
+- **D15.** **No se usa el correo de orquestación de Orca ni se lee su pantalla.** En el piloto, el coordinador tenía que ser una terminal de Orca, `--agent pi` no estaba configurado y `orca terminal wait --for tui-idle` dio la sesión por ociosa mientras seguía trabajando. `sala esperar` vigila en cambio `activity.state` en el snapshot del feed: cambia en menos de 16 ms y **nunca dice `idle` mientras quedan subagentes o trabajos** (dice `waiting`). La sala lo corre como trabajo en segundo plano de Gentle Shell y **duerme sin gastar tokens** hasta que el script termina y la despierta.
 - **D16.** **El veredicto tiene reglas por comando**, definidas en el kit y no en el prompt. Por ejemplo:
   - después de entregar: rama, último commit, PR y CI;
   - después de volver a la base: en la base, limpio y al día.
-- **D17.** **Preguntas con opciones.** Toda decisión con alternativas finitas se pregunta con la herramienta `ask_user_choice` de Gentle Shell: la opción recomendada primero y texto libre solo si la respuesta es abierta. Las preguntas de un miembro que necesitan a la persona suben a la sala, y la sala las hace con opciones, **sin contestarlas por su cuenta**.
+- **D17.** **Preguntas.** Toda decisión de la sala con alternativas finitas se pregunta con `ask_user_choice`: la opción recomendada primero y texto libre solo si la respuesta es abierta. Las preguntas de un miembro llegan por `pendingQuestion` del feed y **la sala las muestra completas en su chat**, de cualquier clase. La persona contesta libremente en el input de la sala, y la sala **nunca contesta por su cuenta**. Cómo llega la respuesta al miembro depende de la clase de pregunta:
+
+| Clase de pregunta | Por el feed (sesión en Orca o Windows Terminal) | Por RPC (SK7) |
+|---|---|---|
+| Una pregunta de una opción | `sala responder` la entrega con `answer_question` | La entrega |
+| Varias preguntas, varias opciones, diálogos de extensiones | **Se contestan en la pestaña del miembro**: la sala la muestra con `orca terminal switch`, o dice el título de la pestaña en Windows Terminal | La entrega |
+| Consentimientos (revisión de un proveedor, permiso de mantenimiento) | **En la pestaña del miembro**: Gentle Shell nunca los acepta por la bandeja | La entrega solo con la comprobación de D48 |
 
 ## Fusionar y seguir
 
@@ -146,12 +156,18 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 ## El modelo y las sesiones
 
-- **D28.** **Un modelo más barato para la sala**, porque con los scripts solo coordina y resume. Va por parámetro al abrirla (`options.roomModel`), **sin tocar ninguna configuración global**. Los miembros siguen con el modelo fuerte para implementar.
-- **D29.** **Una sesión nueva por unidad en cada miembro.** Después de la cadena de fusión se cierra la sesión, y la próxima `/miembro-tarea` arranca en una limpia. Arrancar cuesta unos 45 s; gasta menos contexto y se confunde menos.
+- **D28.** **Un modelo más barato para la sala**, porque con los scripts solo coordina y resume. Se aplica con la acción `apply_profile` del feed, que liga un perfil de modelo **solo a esa sesión** (`options.roomModel` nombra el perfil), **sin tocar ninguna configuración global**. Los miembros siguen con el modelo fuerte para implementar.
+- **D29.** **Una sesión nueva por unidad en cada miembro.** La bandeja no acepta `/new` ni `/quit`, así que reinicia el lanzador: después de la cadena de fusión, la sala **cierra la terminal del miembro** (`orca terminal close`), abre una nueva con contexto limpio y le manda la tarea siguiente. Solo cierra si:
+  - la sesión está libre, sin subagentes ni trabajos;
+  - no tiene ninguna pregunta abierta;
+  - el árbol está limpio y la tarea está fusionada;
+  - la terminal **la abrió la propia sala** (su handle está en `.sala/estado.json`). Nunca cierra una terminal de la persona.
+
+  Si algo falla, pregunta. Es zona crítica. Arrancar cuesta unos 45 s; gasta menos contexto y se confunde menos.
 
 ## Relación con repo-panel
 
-- **D30.** **Arquitectura hexagonal.** sala-kit es el núcleo; la terminal con Gentle Shell es un adaptador, y la interfaz del panel será otro. El panel ya lanza pi por RPC, así que con el kit integrado **Orca deja de hacer falta** sin tocar el núcleo. El panel va a consumir el kit, ya sea por su JSON o importándolo como librería: Conformity usa `sala revisar`, el plan usa `sala plan` y los botones usan `sala enviar`.
+- **D30.** **Arquitectura hexagonal.** sala-kit es el núcleo y **no depende del panel**: funciona solo, en terminal pura o con Orca. repo-panel es una capa superior que consume el kit. El panel hospeda sus propias sesiones por RPC y desde ahí contesta todo, también desde el iPhone; es el ejemplo de cómo resolver preguntas y respuestas, no una dependencia. El panel va a consumir el kit, ya sea por su JSON o importándolo como librería: Conformity usa `sala revisar`, el plan usa `sala plan` y los botones usan `sala enviar`.
 - **D31.** **repo-panel está en pausa** desde el 2026-11-20, por decisión de la persona, hasta que el kit funcione. Su fila RP255 replantea el panel sobre el kit. Si los dos repos se fusionan o quedan separados se decide entonces.
 
 ## Lo propio de upen (no va en el kit)
@@ -163,10 +179,11 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 | Qué | Por qué importa | Dónde se comprueba |
 |---|---|---|
 | Que Gentle Shell despierte a una sala **ociosa** cuando termina un trabajo en segundo plano. Se vio en medio de un turno, no ociosa | `sala esperar` depende de eso (D15) | SK2a |
-| Dónde guarda pi el archivo de sesión de cada miembro y cómo se marca el fin de turno | `sala esperar` lo vigila (D15) | SK2a |
+| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question` | D13 y D17 | SK2a |
+| Que `orca terminal create --worktree` abra la terminal dentro del proyecto de Orca, y cómo responden `switch` y `close` | D14 y D29 | SK2a |
 | Cómo se ve `ask_user_choice` en la terminal de Orca. Se midió por RPC en RP237, no en la terminal | D17 | SK2a |
 | Por qué falla el `git fetch` dentro de `estado-vivo.sh` | Que `sala estado` no repita el error | SK1a |
-| Si un modelo por parámetro se puede pasar al abrir Gentle Shell sin tocar su configuración | D28 | SK3c |
+| Que `apply_profile` por la bandeja ligue el perfil solo a esa sesión. Resuelve la duda anterior de pasar un modelo por parámetro | D28 | SK3c |
 
 ## Decisiones de la segunda ronda (2026-11-20)
 
@@ -225,3 +242,20 @@ Salen de dos revisiones de solo lectura: el proyecto `escritorio-ia-kit` y cómo
   - **Salida.** `sala plan` suma el campo `queue` con las olas, y cada elemento lleva el miembro, el ID, la entrega, lo que espera y el motivo. Con `--texto`, una línea por ola.
   - **Dónde se ve.** En la terminal, como texto. La vista visual es de repo-panel, en Rooms, dentro de su replanteo (RP255). En Gentle Shell no va un widget: lo decidió la persona el 2026-11-20, porque las visualizaciones van al panel.
   - **El riesgo que queda: un PR que se fusiona sin marcar su fila `Completada`.** Lo cubre `sala veredicto` (D16): después de entregar, comprueba que la fila de la tarea del PR diga `Completada` y, si no, lo avisa antes de fusionar.
+
+## Decisiones de la cuarta ronda (2026-11-20)
+
+Salen del análisis de Gentle Shell Desktop (PR 3277 de gentle-shell, `docs/gentle-shell-desktop.md` y `docs/desktop-feed.md`). La persona las aprobó el mismo día.
+
+- **D46. El adaptador feed.** Cada sesión interactiva de Gentle Shell (TUI o host RPC) publica `<agentDir>/desktop/sessions/<id>.json` y tiene una bandeja de acciones. Comprobado el 2026-11-20 en esta máquina: había 7 sesiones con su snapshot, las de Orca en modo `tui` y las de repo-panel en modo `rpc`.
+  - **Mirar:** lee los snapshots de `~/.gentle-shell/agent` y `~/.pi/agent`, más las carpetas que agregue `sala.json`. Cruza cada sesión con su miembro por `identity.cwd` y `realCwd` contra `path`. Una sesión cuenta como viva mientras su `identity.pid` corre.
+  - **Qué da gratis:** `activity` (estado y su texto), `pendingQuestion`, el modelo, el perfil, el modo de permisos, el contexto, el costo, `usage` (las ventanas del plan), `todo`, subagentes, trabajos, cambios y la lista de comandos.
+  - **Actuar:** deja una acción en `desktop/inbox/<sesión>/<id>.json` y lee la respuesta en `outbox`: `send_prompt`, `answer_question` (con `via: "session"`), `abort_turn`, `cancel_job`, `cancel_subagent`, `set_permission_mode` (subir el modo se niega mientras la sesión trabaja), `refresh_usage` y `apply_profile`.
+  - **Contrato:** lee solo `gentle-shell.desktop-feed/v1`. Ante otra versión no adivina: avisa con el motivo (D47).
+  - **Límites:** no abre sesiones (eso es del lanzador); no trae la conversación (para el resumen de un miembro se lee `identity.sessionFile`); y una sesión que arrancó antes de esta función no tiene bandeja hasta que se reinicia.
+  - **Privacidad:** el snapshot trae rutas y el texto de las preguntas. Nunca se expone por un servidor.
+- **D47. El contrato con Gentle Shell.** Dependemos de Gentle Shell y de pi, que son el agente; de todo lo demás, lo menos posible y detrás de un adaptador.
+  - **Parte mecánica, sin tokens:** el kit anota con qué versión de Gentle Shell y qué formato del feed se probó. Hay pruebas de contrato con snapshots reales guardados de muestra, sin datos privados. `sala revisar` compara lo instalado con lo anotado y avisa antes de que algo falle en el día a día.
+  - **Parte con modelo, a pedido:** `/sala-novedades` lee qué cambió en Gentle Shell desde la última versión revisada (su changelog y sus documentos del feed). Dice qué hay que **ajustar** para seguir funcionando y qué es **nuevo y útil**; lo que la persona elija entra como filas del roadmap.
+- **D48. Consentimientos que pasan por la sala.** Una respuesta de consentimiento solo la entrega un transporte que pueda hacerlo (RPC, SK7). `sala responder` la entrega únicamente si comprueba, de forma mecánica, que **el último mensaje escrito por la persona en la sala** (no uno del agente) es posterior a la pregunta y contiene esa respuesta. Además queda en el registro. Es zona crítica y va en PR propio, con una prueba que reproduce a la sala intentando contestar sola. Por el feed, Gentle Shell ya niega los consentimientos: se contestan en la pestaña del miembro.
+- **D49. Contestar desde cualquier dispositivo.** Decisión de la persona del 2026-11-20: contestar desde el teléfono es tan seguro como desde la computadora. El kit no restringe **dónde** contesta la persona; solo controla que un **agente** no conteste por ella (D17 y D48).
