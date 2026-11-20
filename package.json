@@ -5,6 +5,9 @@
   "description": "Reusable kit for a coordinating room: one agent session that plans, sends orders to and merges across several git repos while a person decides.",
   "type": "commonjs",
   "license": "MIT",
+  "bin": {
+    "sala": "bin/sala.js"
+  },
   "engines": {
     "node": ">=20"
   },
