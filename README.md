@@ -2,7 +2,7 @@
 
 El motor reutilizable de una **sala**: una sesión de Gentle Shell que coordina varios repositorios (los **miembros**) mientras una persona decide.
 
-> Estado: **fase 1**. La CLI `sala` tiene `sala estado` y `sala plan`.
+> Estado: **fase 1**. La CLI `sala` tiene `sala estado`, `sala plan` y `sala revisar`.
 
 ## La idea en tres piezas
 
@@ -90,6 +90,25 @@ core (1/4 completadas)
   siguiente: E04 Entrega E04
   espera:    E03 Entrega E03: espera a E02 (En curso)
 ```
+
+## `sala revisar`
+
+```
+sala revisar [miembro] [--texto] [--sala <carpeta>]
+```
+
+Revisa el catálogo de requisitos en cada miembro, o solo en `miembro` (su `id`). Los archivos del miembro se leen de la rama base **remota**, después de un `git fetch`. Cada requisito sale como `{id, ok, detail, fix}`: `ok` es `true`, `false` o `null` (sin comprobar, porque falta lo que necesita), y `fix` es la orden para la sesión del miembro que lo pone en condiciones.
+
+| Requisito | Qué pide |
+|---|---|
+| `base-remote` | La carpeta existe, tiene el remoto de `sala.json` y la rama base está en ese remoto |
+| `roadmap-table` | `docs/ROADMAP.md` con la tabla de Orquestación 1.0 |
+| `roadmap-header` | Las tres líneas de cabecera: `**Dónde está:**`, `**Qué sigue:**` y `**Qué lo bloquea:**` |
+| `roadmap-states` | Cada `Estado` es `Pendiente`, `En curso`, `Completada` o `Bloqueada` |
+| `agents-size` | `AGENTS.md` existe y pesa 16 KB o menos |
+| `no-secrets` | `AGENTS.md` sin secretos; también se revisa el `sala.json` de la sala, en `salaJson` |
+
+Un secreto (token de GitHub, clave `sk-`, clave de AWS, clave privada o URL con usuario y clave) se informa con su tipo, el archivo y la línea; **nunca** se muestra el texto encontrado. Un `miembro` que no está en `sala.json` es un error.
 
 ## Documentos
 
