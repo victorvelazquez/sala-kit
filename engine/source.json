@@ -1,0 +1,16 @@
+{
+  "repository": "victorvelazquez/flow-skills",
+  "commit": "1c60a98f3d80de841c0d4a28b608e737db40d72c",
+  "version": "0.3.1",
+  "copiedAt": "2026-11-21",
+  "files": {
+    "scripts/flow-commit.mjs": "e3655131a14e4657e6e91e07bbbe360d0681b6cdbecddefd8bd8a2bcd9e89cc7",
+    "scripts/flow-pr.mjs": "20d7d6d3685383168aa22c5fdb38063cc50ce5edeee7e7fa34f192db6cf5abc4",
+    "scripts/lib/flow-pr-contracts.mjs": "5688a2e12536cf5bbdbfa395dc2bf3fe21a1723af6d8d0da8c30ca411a382efb",
+    "scripts/lib/flow-pr-drafting.mjs": "1c22b5c744d2c9f9f13a5a624cce2bcf1ec8d14e89e06bf39597c54a8c4a4bd9",
+    "scripts/lib/flow-pr-executor.mjs": "9b9c37469a2fa4ca16c601db476f08135b31c4ef4241c615fcf03f8315863cda",
+    "scripts/lib/flow-pr-inspection.mjs": "5de0b11007d97d88f8fb366c0fa16a4db02097c0ef51a373ea24adaf825caba9",
+    "test/flow-commit-unstage.test.mjs": "7b95404345f5faf045f258a472728efde57c365bee3a89724c49a5637cd842bd",
+    "test/flow-pr-update-existing.test.mjs": "c6fffc9d19182855d92a7e55eb99d527100780f347239d5ba514e1ac140fc38b"
+  }
+}

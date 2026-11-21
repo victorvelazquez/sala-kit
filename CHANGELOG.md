@@ -14,3 +14,4 @@ La primera versión. `sala.json` tiene `schema: 1`.
   - poner la sala al día: `actualizar`.
 - **Los comandos de Gentle Shell:** `/sala-plan`, `/sala-estado`, `/sala-orden`, `/sala-entregar`, `/sala-seguir`, `/sala-fusionar`, `/sala-adoptar` y `/sala-soltar`.
 - **Los bloques administrados** de la sala y del miembro, en `templates/`.
+- **El motor de entrega** en `engine/`: la copia de `flow-commit` y `flow-pr` del commit `1c60a98` de flow-skills (0.3.1), con su origen en `engine/source.json`. Todavía no lo usa ningún comando.

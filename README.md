@@ -315,6 +315,16 @@ Antes de escribir, lee y decide todo. **No escribe nada** si:
 
 Correrlo de nuevo no cambia nada. Los archivos se reemplazan con un renombre, primero `AGENTS.md` y después `sala.json`: si el primero falla, no cambia nada; si falla el segundo, el error lo dice y otra corrida lo termina. Los cambios de cada versión están en [`CHANGELOG.md`](CHANGELOG.md).
 
+## El motor de entrega
+
+`engine/` es una **copia byte por byte** del motor de `flow-commit` y `flow-pr` de [flow-skills](https://github.com/victorvelazquez/flow-skills) (D22): `scripts/flow-commit.mjs`, `scripts/flow-pr.mjs`, las cuatro `scripts/lib/flow-pr-*.mjs` que usa y sus pruebas en `test/`, con la misma estructura de carpetas. Reescribirlo sería riesgo puro sobre el historial de Git.
+
+- `engine/source.json` anota de dónde viene: el repo, el commit, la versión de flow-skills y el SHA-256 de cada archivo.
+- `test/engine.test.js` falla si un archivo de `engine/` cambió, falta o sobra, y corre las pruebas del propio motor.
+- **No se edita a mano.** Para traer una versión nueva, se vuelve a copiar entera y se regenera `source.json` en el mismo cambio. Las opciones de formato de D23 van aparte (SK5e), sin tocar la copia.
+
+Todavía no lo usa ningún comando: `/miembro-entregar` llega en SK5b.
+
 ## Documentos
 
 - [`docs/DISENO.md`](docs/DISENO.md): todas las decisiones de diseño y lo que falta comprobar.
