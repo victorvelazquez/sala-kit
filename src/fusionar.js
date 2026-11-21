@@ -9,7 +9,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { run, redact, firstLine } = require('./run');
 const { ghCommand } = require('./estado');
-const { findMember, SalaError } = require('./abrir');
+const { findMember, SalaError, readState } = require('./abrir');
+const { reiniciar, ownTerminal } = require('./reiniciar');
 const { enviar, esperar, guard, paused } = require('./enviar');
 const { veredicto } = require('./veredicto');
 const { plan, readRoadmap } = require('./plan');
@@ -127,23 +128,44 @@ async function gate(ctx) {
   return `${member.base} limpia, sin stash e igual a ${member.remote}/${member.base}`;
 }
 
-// Step 6: the next ready task of the sala's plan, unless its row says `Auto: no`.
-async function nextTask(ctx) {
-  const { config, salaDir, member } = ctx;
+// The next ready task of the sala's plan, unless its row says `Auto: no`:
+// { order }, { skip } with why none is asked for, or { error }.
+async function pickNext(ctx) {
+  const { config, member } = ctx;
   const mine = (await plan(config)).members.find((m) => m.id === member.id);
-  if (mine.error) throw new StepError(`no se pudo leer el plan: ${mine.error}`);
-  if (!mine.next) return 'no hay una tarea siguiente lista';
-  if (!TASK_ID.test(mine.next.id)) throw new StepError('la tarea siguiente no tiene un ID válido; no se pide');
+  if (mine.error) return { error: `no se pudo leer el plan: ${mine.error}` };
+  if (!mine.next) return { skip: 'no hay una tarea siguiente lista' };
+  if (!TASK_ID.test(mine.next.id)) return { error: 'la tarea siguiente no tiene un ID válido; no se pide' };
   const read = await readRoadmap(member);
   const row = read.rows ? read.rows.find((r) => r.id === mine.next.id) : null;
-  if (!row) throw new StepError(`no se pudo releer la fila ${mine.next.id}`);
-  if (AUTO_NO.test(row.notas)) return `la tarea siguiente ${row.id} dice Auto: no; no se pide sola`;
-  const order = `${NEXT_ORDER} ${row.id}`;
-  await enviar(config, salaDir, member.id, order);
-  return `pedida la tarea siguiente: ${order}`;
+  if (!row) return { error: `no se pudo releer la fila ${mine.next.id}` };
+  if (AUTO_NO.test(row.notas)) return { skip: `la tarea siguiente ${row.id} dice Auto: no; no se pide sola` };
+  return { order: `${NEXT_ORDER} ${row.id}` };
 }
 
-const STEPS = [['pr', checkPr], ['session', checkSession], ['merge', merge], ['base', backToBase], ['gate', gate], ['next', nextTask]];
+// Step 6 (D29): the next task starts in a clean session, when the sala opened the terminal.
+// A terminal of the person is never closed; a restart that is refused stops the chain.
+async function restart(ctx) {
+  const { config, salaDir, member } = ctx;
+  ctx.next = await pickNext(ctx);
+  if (!ctx.next.order) return 'no hay una tarea para pedir: no se reinicia';
+  if (!ownTerminal(readState(salaDir).members[member.id])) return `${member.id} no tiene una terminal de Orca que abrió la sala: sigue la misma sesión`;
+  const r = await reiniciar(config, salaDir, member.id);
+  return `cerrada la terminal ${r.closed}; sesión nueva ${r.session} en ${r.handle}`;
+}
+
+// Step 7: asks for the next task.
+async function nextTask(ctx) {
+  const { config, salaDir, member, next } = ctx;
+  if (next.error) throw new StepError(next.error);
+  if (!next.order) return next.skip;
+  await enviar(config, salaDir, member.id, next.order);
+  return `pedida la tarea siguiente: ${next.order}`;
+}
+
+const STEPS = [
+  ['pr', checkPr], ['session', checkSession], ['merge', merge], ['base', backToBase], ['gate', gate], ['restart', restart], ['next', nextTask],
+];
 
 // A step that cannot be logged ends the chain, so the merge never runs after an unlogged step.
 function logStep(salaDir, entry) {
@@ -162,7 +184,7 @@ async function fusionar(config, salaDir, id, number) {
   const n = Number(number);
   const timeoutMs = Number(process.env.SALA_MERGE_TIMEOUT_MS) || 45 * 60 * 1000;
   const deadline = Date.now() + timeoutMs;
-  const ctx = { config, salaDir, member, n, head: null };
+  const ctx = { config, salaDir, member, n, head: null, next: null };
   const steps = [];
   for (const [step, fn] of STEPS) {
     let ok = true;

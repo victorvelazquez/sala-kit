@@ -109,7 +109,7 @@ test('an unknown format warns, a dead pid and a foreign path do not count', (t) 
   ]);
 });
 
-test('the inbox takes only send_prompt and answer_question, and nothing else is written', async (t) => {
+test('the inbox takes only send_prompt, answer_question and apply_profile by name, and nothing else is written', async (t) => {
   const dir = tempDir(t);
   const agentDir = path.join(dir, 'agent');
   writeSnapshot(agentDir, 's1', snapshot(agentDir, dir));
@@ -122,7 +122,12 @@ test('the inbox takes only send_prompt and answer_question, and nothing else is 
     ['cancel_job', { id: 'j1' }],
     ['cancel_subagent', { id: 'a1' }],
     ['refresh_usage', {}],
-    ['apply_profile', { name: 'barato' }],
+    // The sala never confirms a profile on the person's behalf, nor sends a name it cannot show.
+    ['apply_profile', { name: 'barato', confirmation: 'tok' }],
+    ['apply_profile', { name: '' }],
+    ['apply_profile', { name: 'bar\u0007ato' }],
+    ['apply_profile', { name: 'x'.repeat(129) }],
+    ['apply_profile', { profile: 'barato' }],
     ['answer_question', { toolCallId: 'c1', option: 'granted', via: 'session', extra: 1 }],
     ['send_prompt', { text: '   ' }],
   ]) {

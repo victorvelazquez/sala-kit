@@ -101,7 +101,8 @@ async function abrir(config, salaDir, id) {
   }
 }
 
-async function openMember(config, salaDir, member) {
+// `chosen` forces a launcher: a restart opens again where the sala closed (sala reiniciar).
+async function openMember(config, salaDir, member, chosen = null) {
   const { id } = member;
   const [live] = liveSessions(member);
   if (live) return { member: id, action: 'reused', session: live.id };
@@ -114,7 +115,7 @@ async function openMember(config, salaDir, member) {
     }
   }
 
-  const launcher = await pickLauncher(config.options.launcher);
+  const launcher = chosen || await pickLauncher(config.options.launcher);
   const opened = await launcher.open(member);
   if (!opened.ok) throw new SalaError(`${id}: ${opened.error}`);
   const record = { launcher: launcher.name, handle: opened.handle, title: opened.title, session: null, openedAt: new Date().toISOString() };
@@ -183,4 +184,6 @@ function retomarTexto(result) {
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, findMember, SalaError };
+module.exports = {
+  abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, findMember, SalaError, openMember, readState, takeLock, liveSessions,
+};

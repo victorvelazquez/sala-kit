@@ -12,6 +12,7 @@ const { veredicto, veredictoTexto } = require('../src/veredicto');
 const { preguntas, preguntasTexto, responder, responderTexto } = require('../src/responder');
 const { init, initTexto, donde, dondeTexto } = require('../src/init');
 const { fusionar, fusionarTexto } = require('../src/fusionar');
+const { reiniciar, reiniciarTexto, modelo, modeloTexto } = require('../src/reiniciar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -65,10 +66,19 @@ Uso:
                                              fusiona el PR #n del miembro, solo si está abierto, en
                                              verde y fusionable, con el método que el repo permite;
                                              después le manda /flow-base, corre la puerta y le pide
-                                             la tarea siguiente (salvo Auto: no). Se detiene en el
+                                             la tarea siguiente (salvo Auto: no) en una sesión nueva,
+                                             si la sala abrió su terminal de Orca. Se detiene en el
                                              primer paso que falla, mira .sala/PAUSA antes de cada
                                              uno y los anota en .sala/fusiones.log; sale con 1 si
                                              no terminó
+  sala reiniciar <miembro> [--texto] [--sala <carpeta>]
+                                             cierra la terminal de Orca que abrió la sala y abre una
+                                             sesión nueva, solo si la sesión está libre, sin pregunta,
+                                             y el miembro está en su base limpia y al día; nunca cierra
+                                             una terminal de la persona
+  sala modelo [--texto] [--sala <carpeta>]   aplica el perfil de options.roomModel solo a la sesión de
+                                             la sala, sin tocar la configuración global; si el perfil
+                                             pide confirmación, la da la persona en la terminal
 
 Opciones:
   --texto            salida para leer, en vez de JSON
@@ -93,6 +103,8 @@ const COMMANDS = {
   esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
   veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
   preguntas: { run: (config) => preguntas(config), texto: preguntasTexto },
+  reiniciar: { run: (config, opts) => reiniciar(config, opts.sala, opts.member), texto: reiniciarTexto, member: 'required' },
+  modelo: { run: (config, opts) => modelo(config, opts.sala), texto: modeloTexto },
   fusionar: {
     run: (config, opts) => fusionar(config, opts.sala, opts.member, opts.order),
     texto: fusionarTexto,

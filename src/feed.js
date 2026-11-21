@@ -17,6 +17,8 @@ const NAME = /^[A-Za-z0-9_-]{1,128}$/;
 const CONSENT = ['granted', 'declined'];
 // C0, DEL and C1 controls; a prompt may still carry new lines and tabs.
 const PROMPT_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+// A profile name the person can read: no controls, no bidi, 1-128 characters (D28).
+const PROFILE = /^[^\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]{1,128}$/;
 // Gentle Shell takes the option of answer_question as its index.
 const MAX_OPTION = 63;
 const bare = (label) => String(label).replace(/[\p{Cf}\s]/gu, '').toLowerCase();
@@ -177,7 +179,9 @@ function readFeed(roots, members) {
       const member = deepestFirst.find((m) => cwds.some((c) => inside(c, m.path)));
       if (!member) continue;
       sessions[member.id].push(summary(snap, name));
-      targets[member.id].push({ agentDir: root, name, sessionId: snap.identity.sessionId, question: rawQuestion(snap.pendingQuestion) });
+      // The raw activity state goes to the targets only: a close needs the session to say idle.
+      const activity = snap.activity && typeof snap.activity.state === 'string' ? snap.activity.state : null;
+      targets[member.id].push({ agentDir: root, name, sessionId: snap.identity.sessionId, question: rawQuestion(snap.pendingQuestion), activity });
     }
   }
   return { sessions, targets, warnings };
@@ -193,6 +197,10 @@ function allowed(kind, args) {
   if (kind === 'answer_question') {
     return keys === 'option,toolCallId,via' && args.via === 'session' && typeof args.toolCallId === 'string'
       && NAME.test(args.toolCallId) && Number.isInteger(args.option) && args.option >= 0 && args.option <= MAX_OPTION;
+  }
+  // Only by name: a confirmation token is the person's, never the sala's.
+  if (kind === 'apply_profile') {
+    return keys === 'name' && typeof args.name === 'string' && args.name.trim() !== '' && PROFILE.test(args.name);
   }
   return false;
 }

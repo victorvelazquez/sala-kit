@@ -68,6 +68,12 @@ const orca = {
     if (!res.ok) return { ok: false, error: `Orca no pudo mostrar la terminal: ${res.error}` };
     return { ok: true, shown: true };
   },
+  // Closes only the tab of that terminal (SK2a); the caller checks that its session ended.
+  async close(record) {
+    const res = await this.call(['terminal', 'close', '--terminal', record.handle, '--tab', '--json']);
+    if (!res.ok) return { ok: false, error: `Orca no pudo cerrar la terminal: ${res.error}` };
+    return { ok: true };
+  },
 };
 
 // wt returns as soon as it hands the tab over, with no handle: the tab is known by its title.
