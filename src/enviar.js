@@ -137,4 +137,4 @@ function esperarTexto(r) {
     : `${r.member}: terminó (sesión ${r.session}, ${SESSION_STATE[r.state]})\n`;
 }
 
-module.exports = { enviar, enviarTexto, esperar, esperarTexto, logOrder, guard, paused };
+module.exports = { enviar, enviarTexto, esperar, esperarTexto, logOrder, guard, paused, onlySession };

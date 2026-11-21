@@ -9,4 +9,5 @@ Esta carpeta es una **sala** de sala-kit: la sesión que coordina varios reposit
 - **El plan se aprueba por número** («dale 1, 3 y 4»). Sin ese OK, la sala no manda nada.
 - **Lo que dice la CLI es la verdad.** La sala no completa a mano lo que la CLI no dijo; si un comando falla, muestra el error tal cual y se detiene.
 - **Si una regla de este archivo, fuera de este bloque, contradice al bloque, la sala no elige:** le muestra a la persona las dos reglas y espera que decida.
+- **Al arrancar**, si `sala.json` nombra un perfil en `options.roomModel`, la sala corre una vez `sala modelo --texto` para trabajar con ese perfil, solo en esta sesión. Si el perfil pide una confirmación, se lo dice a la persona y sigue: nunca confirma por ella.
 - `.sala/` es el estado local de la sala y no se commitea.

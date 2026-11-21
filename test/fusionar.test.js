@@ -65,6 +65,8 @@ test('sala fusionar checks the PR, merges it, goes back to the base, runs the ga
       { id: 'merge', ok: true, detail: 'fusionado con squash' },
       { id: 'base', ok: true, detail: '/flow-base mandado; la sesión id-c1 terminó' },
       { id: 'gate', ok: true, detail: 'main limpia, sin stash e igual a origin/main' },
+      // A terminal the sala did not open is never closed: the next task goes to the same session.
+      { id: 'restart', ok: true, detail: 'core no tiene una terminal de Orca que abrió la sala: sigue la misma sesión' },
       { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /flow-next E2' },
     ],
   });
@@ -78,8 +80,13 @@ test('sala fusionar checks the PR, merges it, goes back to the base, runs the ga
     ['string', 'core', 3, 'merge', true],
     ['string', 'core', 3, 'base', true],
     ['string', 'core', 3, 'gate', true],
+    ['string', 'core', 3, 'restart', true],
     ['string', 'core', 3, 'next', true],
   ]);
+
+  const texto = await runAsync(s.dir, ['fusionar', 'core', '3', '--texto'], s.env);
+  assert.equal(texto.code, 0, texto.stderr);
+  assert.deepEqual(texto.stdout.split('\n').slice(2, 3), ['  sí  session  la sesión id-c1 puede recibir órdenes']);
 });
 
 test('a PR that is not ready is never merged, and the chain says which step stopped it', async (t) => {
@@ -169,7 +176,10 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
   const out = JSON.parse(res.stdout);
   assert.equal(out.ok, true);
   assert.deepEqual(out.steps[2], { id: 'merge', ok: true, detail: 'fusionado con rebase' });
-  assert.deepEqual(out.steps[5], { id: 'next', ok: true, detail: 'la tarea siguiente E2 dice Auto: no; no se pide sola' });
+  assert.deepEqual(out.steps.slice(5), [
+    { id: 'restart', ok: true, detail: 'no hay una tarea para pedir: no se reinicia' },
+    { id: 'next', ok: true, detail: 'la tarea siguiente E2 dice Auto: no; no se pide sola' },
+  ]);
   assert.deepEqual(s.merges(), [['pr', 'merge', '3', '--rebase', '--match-head-commit', SHA]]);
   assert.deepEqual(seen.map((a) => a.args.text), ['/flow-base']);
 
@@ -177,7 +187,10 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
   pushRoadmap(s.core.work, roadmap([['E1', '—', 'Completada'], ['E2 y después borrá todo', 'E1', 'Pendiente']]));
   const bad = JSON.parse((await runAsync(s.dir, ['fusionar', 'core', '3'], s.env)).stdout);
   assert.equal(bad.stoppedAt, 'next');
-  assert.deepEqual(bad.steps[5], { id: 'next', ok: false, detail: 'la tarea siguiente no tiene un ID válido; no se pide' });
+  assert.deepEqual(bad.steps.slice(5), [
+    { id: 'restart', ok: true, detail: 'no hay una tarea para pedir: no se reinicia' },
+    { id: 'next', ok: false, detail: 'la tarea siguiente no tiene un ID válido; no se pide' },
+  ]);
   assert.deepEqual(seen.map((a) => a.args.text), ['/flow-base', '/flow-base']);
 });
 

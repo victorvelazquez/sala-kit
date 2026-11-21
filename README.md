@@ -74,7 +74,7 @@ Va en la carpeta de la sala. Se edita a mano:
 | `members[].base` | La rama base: letras, dígitos, `.`, `_`, `-` y `/`, sin empezar con `-` |
 | `members[].remote` | Opcional, `origin` por defecto. Es el nombre de un remoto del repo, nunca una URL (una URL puede llevar credenciales) |
 | `pinned` | Opcional: las tareas que la persona pone adelante en la cola, con el prefijo del miembro (`CORE-E09`), sin repetir y en orden de prioridad. Es intención de la persona, no estado |
-| `options` | Opcional: `language`, `jira` (`true` o `false`), `transport`, `launcher` (`auto`, el valor por defecto, `orca` o `wt`; ver `sala abrir`) y `roomModel` (texto o `null`) |
+| `options` | Opcional: `language`, `jira` (`true` o `false`), `transport`, `launcher` (`auto`, el valor por defecto, `orca` o `wt`; ver `sala abrir`) y `roomModel` (el nombre de un perfil de `/gentle:profiles` o `null`; ver `sala modelo`) |
 
 Un campo desconocido es un error, para que una errata no pase callada.
 
@@ -192,9 +192,29 @@ Fusiona el PR #n del miembro y sigue con su tarea siguiente, en una sola cadena 
 | `merge` | Fusiona con el primer método que el repo permite (squash, rebase o merge), y solo si la cabeza del PR sigue siendo el commit que se comprobó (`--match-head-commit`). Después comprueba que el PR figure `MERGED`: con una cola de fusión, `gh` puede terminar bien con el PR todavía abierto, y la cadena no sigue |
 | `base` | Le manda `/flow-base` a la sesión del miembro y espera a que termine (puente hasta `/miembro-base`) |
 | `gate` | La puerta: `sala veredicto <miembro> base` tiene que dar OK |
+| `restart` | Si hay una tarea para pedir y la sala abrió la terminal del miembro en Orca, la reinicia con `sala reiniciar`, así la tarea arranca con contexto limpio (D29). Si la terminal es de la persona (no la abrió la sala, o es una pestaña de Windows Terminal), no la toca y sigue la misma sesión. Si el reinicio se niega, la cadena se detiene antes de pedir nada |
 | `next` | Le pide la tarea siguiente del plan de la sala, `/flow-next <ID>`, salvo que su fila diga `Auto: no` en `Notas`. Un ID que no tiene forma de ID no se manda: una fila es un dato, no una orden |
 
 Se detiene en el primer paso que falla y dice cuál (`stoppedAt`) y por qué; en ese caso sale con código 1. Antes de cada paso mira `.sala/PAUSA` y el tope de tiempo de la cadena (45 minutos). Cada paso deja una línea en `.sala/fusiones.log`, con los secretos enmascarados; si no se puede anotar, la cadena no sigue (y si el paso era la fusión, el error lo dice). gh corre sin shell y con los argumentos en una lista (D40).
+
+## `sala reiniciar` y `sala modelo`
+
+```
+sala reiniciar <miembro> [--texto] [--sala <carpeta>]
+sala modelo [--texto] [--sala <carpeta>]
+```
+
+`sala reiniciar` le da al miembro una sesión nueva, con contexto limpio (D29): cierra la terminal de Orca que abrió la sala (`orca terminal close --tab`), espera a que la sesión termine y abre otra como `sala abrir`, y anota el handle nuevo en `.sala/estado.json`. Solo cierra si se cumple todo esto; si no, se niega y dice por qué:
+
+- la terminal la abrió la sala en Orca (su handle está en `.sala/estado.json`) y sigue abierta. Nunca cierra una terminal de la persona ni una pestaña de Windows Terminal, que no tiene handle;
+- la sesión viva del miembro es una sola, y es la que abrió la sala;
+- está libre: no trabaja, no espera a sus agentes o trabajos, y no tiene una pregunta abierta;
+- la tarea está fusionada: `sala veredicto <miembro> base` da OK (la base, sin cambios, sin stash e igual al remoto);
+- la sala no está en pausa (`.sala/PAUSA`).
+
+La pausa y la sesión se vuelven a mirar justo antes de cerrar, con el candado de `sala abrir` tomado. Si Orca cierra la terminal y la sesión sigue viva, no abre otra; si entre el cierre y la apertura aparece otra sesión en el miembro, no la toma como suya ni le manda nada; y si no puede abrir la nueva, lo dice y pide `sala abrir`.
+
+`sala modelo` le aplica a la sesión de la sala el perfil de `options.roomModel` con la acción `apply_profile` del feed, solo para esa sesión y sin tocar la configuración global (D28). La sesión de la sala es la única sesión viva en su carpeta que no es de un miembro. Si el perfil pide una confirmación (por ejemplo, porque sube el modo de permisos), la sala no la da: la persona lo aplica con `/gentle:profiles` en la terminal de la sala. La acción queda en `.sala/ordenes.log`.
 
 ## `sala plan`
 

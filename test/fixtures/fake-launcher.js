@@ -4,6 +4,11 @@
 // FAKE_ORCA_DOWN=1 makes orca fail every call. When a terminal opens and
 // FAKE_SNAPSHOT names a folder, it writes the session snapshot there, as
 // Gentle Shell does when it starts, with FAKE_SNAPSHOT_CWD and FAKE_PID.
+// FAKE_ORCA_TERMINALS lists the open terminals; FAKE_ORCA_TERMINALS_FILE keeps them
+// in a file instead, so `close` can remove one, and then the session in
+// FAKE_ORCA_CLOSE_SNAPSHOT ends with it. FAKE_ORCA_CLOSE_ADDS moves another snapshot
+// into FAKE_SNAPSHOT on close, FAKE_ORCA_LIST_TOUCHES creates a file on each list,
+// and FAKE_ORCA_CREATE_FAIL=1 makes create fail.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,6 +16,12 @@ const path = require('node:path');
 const args = process.argv.slice(2);
 const tool = process.env.FAKE_TOOL;
 fs.appendFileSync(process.env.FAKE_LOG, `${JSON.stringify({ tool, args })}\n`);
+
+function terminals() {
+  const file = process.env.FAKE_ORCA_TERMINALS_FILE;
+  const text = file ? (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '') : process.env.FAKE_ORCA_TERMINALS || '';
+  return text.split(',').filter(Boolean);
+}
 
 function startSession() {
   const dir = process.env.FAKE_SNAPSHOT;
@@ -31,12 +42,23 @@ if (tool === 'orca') {
     process.exit(1);
   }
   const [group, verb] = args;
-  if (group === 'terminal' && verb === 'create') {
+  if (group === 'terminal' && verb === 'create' && process.env.FAKE_ORCA_CREATE_FAIL === '1') {
+    process.stderr.write('no se pudo crear\n');
+    process.exit(1);
+  } else if (group === 'terminal' && verb === 'create') {
     startSession();
     process.stdout.write(JSON.stringify({ ok: true, result: { terminal: { handle: 'term_fake1', tabId: 't1' } } }));
   } else if (group === 'terminal' && verb === 'list') {
-    const handles = (process.env.FAKE_ORCA_TERMINALS || '').split(',').filter(Boolean);
+    if (process.env.FAKE_ORCA_LIST_TOUCHES) fs.writeFileSync(process.env.FAKE_ORCA_LIST_TOUCHES, '');
+    const handles = terminals();
     process.stdout.write(JSON.stringify({ ok: true, result: { terminals: handles.map((handle) => ({ handle })) } }));
+  } else if (group === 'terminal' && verb === 'close') {
+    const file = process.env.FAKE_ORCA_TERMINALS_FILE;
+    if (file) fs.writeFileSync(file, terminals().filter((h) => h !== args[args.indexOf('--terminal') + 1]).join(','));
+    if (process.env.FAKE_ORCA_CLOSE_SNAPSHOT) fs.rmSync(process.env.FAKE_ORCA_CLOSE_SNAPSHOT, { force: true });
+    const adds = process.env.FAKE_ORCA_CLOSE_ADDS;
+    if (adds) fs.renameSync(adds, path.join(process.env.FAKE_SNAPSHOT, path.basename(adds)));
+    process.stdout.write(JSON.stringify({ ok: true, result: { closeMode: 'tab' } }));
   } else {
     process.stdout.write(JSON.stringify({ ok: true, result: { navigated: true } }));
   }
