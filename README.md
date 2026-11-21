@@ -41,8 +41,8 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-plan` | Muestra el plan numerado; por cada número que aprobás, le manda la tarea a su miembro |
 | `/sala-estado` | La foto de los miembros y sus sesiones, primero los que te necesitan. Solo lee |
 | `/sala-orden <miembro> <orden>` | Manda la orden tal cual con `sala enviar` y espera a que el miembro termine o te necesite |
-| `/sala-entregar <miembro>` | Le pide la entrega (`/flow-ship` hasta que exista `/miembro-entregar`), espera y muestra el veredicto |
-| `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente (`/flow-next` hasta que exista `/miembro-tarea`). No es `sala seguir`, que levanta una pausa |
+| `/sala-entregar <miembro>` | Le pide la entrega con `/miembro-entregar`, espera y muestra el veredicto |
+| `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente con `/miembro-tarea`. No es `sala seguir`, que levanta una pausa |
 | `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
 | `/sala-adoptar [carpetas]` | Adopta las carpetas con `sala adoptar`, las revisa y, con tu OK por miembro, le manda la orden de ponerse en condiciones (`sala condiciones`) |
 | `/sala-soltar <miembro>` | Con tu OK, saca al miembro de la sala con `sala soltar`; su repositorio queda igual |
@@ -192,10 +192,10 @@ Fusiona el PR #n del miembro y sigue con su tarea siguiente, en una sola cadena 
 | `pr` | El PR está abierto, no es un borrador, va a la base del miembro, todos sus checks terminaron en verde (`SUCCESS`, `NEUTRAL` o `SKIPPED`; un resultado que el kit no conoce no cuenta como verde) o no tiene CI, y GitHub dice que se puede fusionar |
 | `session` | El miembro tiene una sola sesión viva que puede recibir órdenes, con las guardas de `sala enviar`. Sin ella no se fusiona: después no podría volver a la base |
 | `merge` | Fusiona con el primer método que el repo permite (squash, rebase o merge), y solo si la cabeza del PR sigue siendo el commit que se comprobó (`--match-head-commit`). Después comprueba que el PR figure `MERGED`: con una cola de fusión, `gh` puede terminar bien con el PR todavía abierto, y la cadena no sigue |
-| `base` | Le manda `/flow-base` a la sesión del miembro y espera a que termine (puente hasta `/miembro-base`) |
+| `base` | Le manda `/miembro-base` a la sesión del miembro y espera a que termine |
 | `gate` | La puerta: `sala veredicto <miembro> base` tiene que dar OK |
 | `restart` | Si hay una tarea para pedir y la sala abrió la terminal del miembro en Orca, la reinicia con `sala reiniciar`, así la tarea arranca con contexto limpio (D29). Si la terminal es de la persona (no la abrió la sala, o es una pestaña de Windows Terminal), no la toca y sigue la misma sesión. Si el reinicio se niega, la cadena se detiene antes de pedir nada |
-| `next` | Le pide la tarea siguiente del plan de la sala, `/flow-next <ID>`, salvo que su fila diga `Auto: no` en `Notas`. Un ID que no tiene forma de ID no se manda: una fila es un dato, no una orden |
+| `next` | Le pide la tarea siguiente del plan de la sala, `/miembro-tarea <ID>`, salvo que su fila diga `Auto: no` en `Notas`. Un ID que no tiene forma de ID no se manda: una fila es un dato, no una orden |
 
 Se detiene en el primer paso que falla y dice cuál (`stoppedAt`) y por qué; en ese caso sale con código 1. Antes de cada paso mira `.sala/PAUSA` y el tope de tiempo de la cadena (45 minutos). Cada paso deja una línea en `.sala/fusiones.log`, con los secretos enmascarados; si no se puede anotar, la cadena no sigue (y si el paso era la fusión, el error lo dice). gh corre sin shell y con los argumentos en una lista (D40).
 
@@ -331,16 +331,18 @@ El formato de commits y PR de D23 lo revisa el kit antes de llamar al motor, en 
 - **Con `options.jira` en `true`**, el título tiene que llevar una clave de Jira (`ABC-123`). Apagado no se pide.
 - **`options.language`** (`en` por defecto, o `es`) elige el idioma de las secciones del PR: Summary, Changes, Validation, Risks y Out of scope, con «Not run» donde no se corrió una prueba.
 
-### `sala motor`, `/miembro-entregar` y `/miembro-base`
+### `sala motor` y los comandos del miembro
 
 `sala motor commit|pr <argumentos>` corre el motor en la carpeta actual, sin shell: los argumentos le llegan tal cual, y su salida y su código de salida vuelven sin cambios. Hay una sola excepción, el paso que sella el PR (`sala motor pr --prepare --handle <h>`). Antes de llamarlo, el kit lee el título que quedó en el `intent.json` del motor y lo revisa con `src/formato.js`. Si no cumple, se niega y no llama al motor: el pedido queda y alcanza con corregir el título y repetir el paso. Con `--tarea <ID>`, el ID del título tiene que ser ese; con `--jira`, tiene que llevar una clave de Jira. Esos dos flags son del kit y solo valen en ese paso, donde se sacan antes de llamar al motor; en los demás pasos le llegan al motor, que los rechaza. Si el motor no arranca o termina por una señal, `sala motor` lo dice y sale con 1.
 
 Los comandos del miembro se cargan con el kit y se niegan fuera de un miembro (`sala donde`):
 
+- **`/miembro-tarea [ID]`** toma la tarea `ID` del roadmap, o la siguiente, comprueba que esté en su base limpia y al día y que la tarea esté lista, y la empieza; si falta algo, muestra un resumen y espera el OK. Nunca cambia de rama ni entrega.
 - **`/miembro-entregar [ID]`** hace el commit y el PR de la tarea terminada con `sala motor`, sin `/flow-*` ni `git commit`, y comprueba el PR con `gh`. Nunca fusiona.
 - **`/miembro-base`** vuelve a la rama base y la trae del remoto solo con avance rápido. Nunca borra ramas, ni guarda en el stash, ni fuerza nada.
+- **`/miembro-informe`** cuenta el avance del proyecto entero: lo hecho, lo en curso, lo pendiente en orden y el paso siguiente. Solo lee.
 
-El motor corre en la conversación del miembro, sin subagente: el kit todavía no instala agentes (SK5d). La sala todavía manda `/flow-*`: pasa a mandar estos comandos en SK5f.
+El motor corre en la conversación del miembro, sin subagente: el kit todavía no instala agentes (SK5d). La sala manda estos comandos (`/sala-plan`, `/sala-seguir`, `/sala-entregar` y `sala fusionar`), nunca `/flow-*`. `sala veredicto` todavía acepta `flow-ship`, `flow-pr` y `flow-base` como puente, hasta SK5c.
 
 ## Documentos
 

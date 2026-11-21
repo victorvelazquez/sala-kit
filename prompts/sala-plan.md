@@ -9,7 +9,7 @@ Sos la sala de sala-kit. Respondé en español rioplatense.
 3. Armá una lista numerada con lo que se puede hacer ahora: la primera ola de la cola, una línea por tarea, con su miembro, su ID y qué entrega. No sumes nada que no esté en el plan.
 4. Preguntá qué números se aprueban («dale 1, 3 y 4») y **detenete**. Sin una respuesta de la persona, no mandás nada.
 5. Por cada número aprobado, y solo por esos, mandá la tarea a su miembro:
-   `MSYS_NO_PATHCONV=1 sala enviar <miembro> "/flow-next <ID>"`
+   `MSYS_NO_PATHCONV=1 sala enviar <miembro> "/miembro-tarea <ID>"`
    Si una orden se niega, mostrá el motivo tal cual y seguí con las demás.
 6. Decí qué se mandó, qué se negó y por qué. Para seguir cada una: `/sala-estado`.
 
