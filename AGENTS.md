@@ -7,6 +7,10 @@ sala-kit es el motor reutilizable de una **sala**: la sesión que coordina vario
 - **Idioma.** El código, los identificadores y las claves de JSON van en inglés. Los documentos (`README.md`, `docs/`), los comandos que escribe la persona y los textos que ella lee van en español.
 - **Finales de línea LF** en todos los archivos (`.gitattributes`).
 
+## Idioma de las respuestas
+
+**Respondé siempre en español rioplatense**, desde el primer mensaje de cada sesión. Vale aunque el mensaje llegue en inglés: los comandos como `/flow-next`, `/flow-ship` o `/flow-base` mandan su prompt en inglés, pero los escribe la persona, y ella lee en español. Solo cambiá de idioma si la persona te lo pide con palabras propias.
+
 ## Registro de trabajo
 
 El trabajo vive en `docs/ROADMAP.md`, con el formato de Orquestación 1.0.
