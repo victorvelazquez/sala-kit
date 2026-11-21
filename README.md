@@ -2,7 +2,7 @@
 
 El motor reutilizable de una **sala**: una sesión de Gentle Shell que coordina varios repositorios (los **miembros**) mientras una persona decide.
 
-> Estado: **fase 1**. La CLI `sala` tiene `sala estado`, `sala plan` y `sala revisar`.
+> Estado: **fase 2**. La CLI `sala` tiene `sala estado`, `sala plan`, `sala revisar`, `sala abrir` y `sala mostrar`.
 
 ## La idea en tres piezas
 
@@ -50,7 +50,7 @@ Va en la carpeta de la sala. Se edita a mano:
 | `members[].base` | La rama base: letras, dígitos, `.`, `_`, `-` y `/`, sin empezar con `-` |
 | `members[].remote` | Opcional, `origin` por defecto. Es el nombre de un remoto del repo, nunca una URL (una URL puede llevar credenciales) |
 | `pinned` | Opcional: las tareas que la persona pone adelante en la cola, con el prefijo del miembro (`CORE-E09`), sin repetir y en orden de prioridad. Es intención de la persona, no estado |
-| `options` | Opcional: `language`, `jira` (`true` o `false`), `transport` y `roomModel` (texto o `null`) |
+| `options` | Opcional: `language`, `jira` (`true` o `false`), `transport`, `launcher` (`auto`, el valor por defecto, `orca` o `wt`; ver `sala abrir`) y `roomModel` (texto o `null`) |
 
 Un campo desconocido es un error, para que una errata no pase callada.
 
@@ -75,6 +75,33 @@ Un miembro que falla (la carpeta no existe, el `fetch` no llega, `gh` no tiene s
 **La sesión viva de cada miembro** sale del feed de Gentle Shell (`gentle-shell.desktop-feed/v1`), sin leer ninguna pantalla y sin tokens. Se leen los snapshots de `~/.gentle-shell/agent` y `~/.pi/agent`; una sesión es de un miembro cuando su carpeta está dentro de su `path`, y cuenta mientras su proceso corre. En el JSON, cada miembro trae `sessions` (`id`, `mode`, `state`, `label`, `question`, `context` en %, `cost`), y `feed.warnings` dice qué snapshots no se pudieron leer (por ejemplo, un formato que no es la versión 1). `state` es `needs-you` (hay una pregunta abierta o algo la bloquea), `working`, `waiting` (terminó su turno pero quedan subagentes o trabajos) o `idle`. Un secreto en el texto de una pregunta sale solo con su tipo.
 
 Esa carpeta la lee solo el código del kit (D50 en [`docs/DISENO.md`](docs/DISENO.md)): Gentle Shell se la niega a las tools del agente. En la bandeja de una sesión, el kit deja únicamente `send_prompt` y `answer_question` de una opción; cualquier otra acción se niega sin escribir nada.
+
+**`sala estado --retomar`** es el resumen corto con el que arranca la sala (D37): por miembro, la terminal que abrió la sala (`opened`, de `.sala/estado.json`) y cada sesión viva con su estado, su texto y su pregunta abierta. No corre git ni `gh`, así que responde enseguida.
+
+```
+Sala upen
+core   abierta por la sala en orca (term_3f2a…); sesión 01a1fb69: trabajando
+brand  no la abrió la sala; sin sesión viva
+```
+
+## `sala abrir` y `sala mostrar`
+
+```
+sala abrir <miembro> [--texto] [--sala <carpeta>]
+sala mostrar <miembro> [--texto] [--sala <carpeta>]
+```
+
+`sala abrir` deja Gentle Shell listo en el miembro. Si ya tiene una sesión viva en el feed, la reusa y no abre nada (`action: "reused"`). Si no, abre una terminal con el lanzador de `options.launcher`, espera hasta 60 s a que Gentle Shell publique la sesión y anota en `.sala/estado.json` el lanzador, el handle, el título de la pestaña y la sesión (`action: "opened"`).
+
+| `launcher` | Qué abre |
+|---|---|
+| `auto` | Orca si responde; si no, Windows Terminal |
+| `orca` | `orca terminal create --worktree path:<path> --title <miembro> --command gentle-shell`: una terminal dentro del proyecto que el repo ya tiene en Orca |
+| `wt` | `wt -w 0 new-tab -d <path> --title sala-<miembro>`, con Gentle Shell dentro de PowerShell. Puede abrir una ventana nueva en vez de una pestaña (SK2a); una ruta con `;` se niega, porque `wt` la lee como otro comando |
+
+Si la sesión no aparece a tiempo, `sala abrir` termina con error pero el handle queda anotado, para no perder la terminal abierta. Si `.sala/estado.json` no se puede leer, no se abre nada y el archivo no se pisa. Si una terminal de Orca que abrió la sala sigue abierta sin sesión, `sala abrir` se niega en vez de abrir otra. Un `sala abrir` a la vez por sala: lo cuida `.sala/abrir.lock`, que se borra al terminar; si una corrida se cortó a la fuerza, el candado vence a los 5 minutos o lo borrás vos. `.sala/` es estado vivo de la sala: no se versiona.
+
+`sala mostrar` lleva la terminal de Orca que abrió la sala al frente (`orca terminal switch`), después de comprobar con `orca terminal list` que sigue abierta. En Windows Terminal no se puede elegir una pestaña desde afuera: dice su título. Cerrar sesiones llega en SK3c.
 
 ## `sala plan`
 
