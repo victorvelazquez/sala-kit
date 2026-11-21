@@ -163,4 +163,4 @@ function estadoTexto(result) {
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { estado, estadoTexto, openPrs };
+module.exports = { estado, estadoTexto, openPrs, SESSION_STATE };

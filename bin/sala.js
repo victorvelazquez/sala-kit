@@ -6,6 +6,7 @@ const { loadConfig, ConfigError } = require('../src/config');
 const { estado, estadoTexto } = require('../src/estado');
 const { plan, planTexto } = require('../src/plan');
 const { revisar, revisarTexto } = require('../src/revisar');
+const { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaError } = require('../src/abrir');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -13,23 +14,39 @@ const HELP = `sala ${version}
 Uso:
   sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo,
                                              y su sesión viva de Gentle Shell: qué hace y si te necesita
+  sala estado --retomar [--texto] [--sala <carpeta>]
+                                             el resumen corto con el que arranca la sala: lo que abrió
+                                             y la sesión viva de cada miembro, sin git
   sala plan [--texto] [--sala <carpeta>]     por miembro: lo que está en curso, la siguiente tarea lista
                                              y lo que espera, con el motivo; y la cola de la sala
                                              en olas que pueden correr en paralelo
   sala revisar [miembro] [--texto] [--sala <carpeta>]
                                              qué requisitos cumple cada miembro y, para los que
                                              faltan, la orden para cumplirlos
+  sala abrir <miembro> [--texto] [--sala <carpeta>]
+                                             reusa la sesión viva del miembro o abre una nueva en Orca
+                                             o en Windows Terminal (options.launcher), espera a que
+                                             Gentle Shell la publique y la anota en .sala/estado.json
+  sala mostrar <miembro> [--texto] [--sala <carpeta>]
+                                             muestra la terminal de Orca que abrió la sala, o dice
+                                             el título de su pestaña de Windows Terminal
 
 Opciones:
   --texto            salida para leer, en vez de JSON
+  --retomar          con estado: el resumen corto, sin git
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
   --version          la versión del kit
 `;
 
 const COMMANDS = {
-  estado: { run: (config) => estado(config), texto: estadoTexto },
+  estado: {
+    run: (config, opts) => (opts.retomar ? retomar(config, opts.sala) : estado(config)),
+    texto: (result, opts) => (opts.retomar ? retomarTexto(result) : estadoTexto(result)),
+  },
   plan: { run: (config) => plan(config), texto: planTexto },
   revisar: { run: (config, opts) => revisar(config, opts.sala, opts.member), texto: revisarTexto, member: true },
+  abrir: { run: (config, opts) => abrir(config, opts.sala, opts.member), texto: abrirTexto, member: 'required' },
+  mostrar: { run: (config, opts) => mostrar(config, opts.sala, opts.member), texto: mostrarTexto, member: 'required' },
 };
 
 function fail(error, details) {
@@ -38,10 +55,11 @@ function fail(error, details) {
 }
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, texto: false, sala: process.cwd() };
+  const opts = { command: null, member: null, texto: false, retomar: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
+    else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
     else if (arg === '--sala') {
       if (!argv[i + 1]) throw new ConfigError('--sala necesita una carpeta');
       opts.sala = path.resolve(argv[(i += 1)]);
@@ -61,10 +79,12 @@ async function main() {
     if (!opts.command || opts.command === '--help' || opts.command === '-h') return void process.stdout.write(HELP);
     const command = COMMANDS[opts.command];
     if (!command) return fail(`subcomando desconocido: ${opts.command}`);
+    if (command.member === 'required' && !opts.member) return fail(`sala ${opts.command} necesita un miembro`);
     const result = await command.run(loadConfig(opts.sala), opts);
-    process.stdout.write(opts.texto ? command.texto(result) : `${JSON.stringify(result)}\n`);
+    process.stdout.write(opts.texto ? command.texto(result, opts) : `${JSON.stringify(result)}\n`);
   } catch (err) {
     if (err instanceof ConfigError) return fail(err.message, err.details);
+    if (err instanceof SalaError) return fail(err.message);
     throw err;
   }
 }
