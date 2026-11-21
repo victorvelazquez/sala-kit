@@ -17,7 +17,9 @@ const NAME = /^[A-Za-z0-9_-]{1,128}$/;
 const CONSENT = ['granted', 'declined'];
 // C0, DEL and C1 controls; a prompt may still carry new lines and tabs.
 const PROMPT_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+// Gentle Shell takes the option of answer_question as its index.
+const MAX_OPTION = 63;
+const bare = (label) => String(label).replace(/[\p{Cf}\s]/gu, '').toLowerCase();
 
 // SALA_FEED_ROOTS (separated by the path delimiter) replaces the agent dirs; the tests use it.
 function feedRoots() {
@@ -65,6 +67,18 @@ function question(q) {
     options: Array.isArray(q.options) ? q.options.slice(0, 10).map((o) => clip((o && o.label) || '', 200)) : [],
     terminalOnly: Boolean(q.terminalOnly),
     toolCallId: typeof q.toolCallId === 'string' ? clip(q.toolCallId, 128) : null,
+  };
+}
+
+// The question as the session wrote it, for sala responder: an answer is matched
+// against the real labels, never the masked ones. It never goes to the JSON.
+function rawQuestion(q) {
+  if (!q || typeof q !== 'object') return null;
+  return {
+    id: typeof q.toolCallId === 'string' && NAME.test(q.toolCallId) ? q.toolCallId : null,
+    kind: typeof q.kind === 'string' ? q.kind : '',
+    terminalOnly: Boolean(q.terminalOnly),
+    options: Array.isArray(q.options) ? q.options.map((o) => (o && typeof o.label === 'string' ? o.label : '')) : [],
   };
 }
 
@@ -163,7 +177,7 @@ function readFeed(roots, members) {
       const member = deepestFirst.find((m) => cwds.some((c) => inside(c, m.path)));
       if (!member) continue;
       sessions[member.id].push(summary(snap, name));
-      targets[member.id].push({ agentDir: root, name, sessionId: snap.identity.sessionId });
+      targets[member.id].push({ agentDir: root, name, sessionId: snap.identity.sessionId, question: rawQuestion(snap.pendingQuestion) });
     }
   }
   return { sessions, targets, warnings };
@@ -177,13 +191,19 @@ function allowed(kind, args) {
     return text.trim() !== '' && text.length <= 4000 && !PROMPT_CONTROL.test(text);
   }
   if (kind === 'answer_question') {
-    const option = keys === 'option,toolCallId,via' && typeof args.option === 'string' ? args.option : '';
-    // A consent token never goes, not even disguised with invisible characters.
-    const bare = option.replace(/[\p{Cf}\s]/gu, '').toLowerCase();
-    return args.via === 'session' && typeof args.toolCallId === 'string' && NAME.test(args.toolCallId)
-      && bare !== '' && option.length <= 500 && !CONTROL.test(option) && !CONSENT.includes(bare);
+    return keys === 'option,toolCallId,via' && args.via === 'session' && typeof args.toolCallId === 'string'
+      && NAME.test(args.toolCallId) && Number.isInteger(args.option) && args.option >= 0 && args.option <= MAX_OPTION;
   }
   return false;
+}
+
+// An answer goes only to the question the session has open, to one of its options,
+// and never to a consent token, not even disguised with invisible characters.
+function answerable(target, args) {
+  const q = target.question;
+  if (!q || q.id !== args.toolCallId || args.option >= q.options.length) return false;
+  const label = bare(q.options[args.option]);
+  return label !== '' && !CONSENT.includes(label);
 }
 
 function refuse(code, message) {
@@ -197,6 +217,9 @@ async function sendAction(target, kind, args, { timeoutMs = 10000 } = {}) {
   if (!allowed(kind, args)) return refuse('not_allowed', `la sala no manda ${clip(kind, 64)} con esos datos`);
   if (!target || !NAME.test(target.name || '') || typeof target.sessionId !== 'string') {
     return refuse('invalid_target', 'la sesión no es válida');
+  }
+  if (kind === 'answer_question' && !answerable(target, args)) {
+    return refuse('not_allowed', 'la respuesta no corresponde a la pregunta abierta de la sesión');
   }
   const desktop = path.join(target.agentDir, 'desktop');
   const inbox = path.join(desktop, 'inbox', target.name);
@@ -236,4 +259,4 @@ async function sendAction(target, kind, args, { timeoutMs = 10000 } = {}) {
   return refuse('timeout', `la sesión no respondió en ${timeoutMs / 1000} s`);
 }
 
-module.exports = { readFeed, sendAction, feedRoots, FEED_SCHEMA };
+module.exports = { readFeed, sendAction, feedRoots, FEED_SCHEMA, CONSENT, bare };
