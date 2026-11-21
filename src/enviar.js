@@ -9,6 +9,7 @@ const { readFeed, sendAction, feedRoots } = require('./feed');
 const { findMember, SalaError } = require('./abrir');
 const { SESSION_STATE } = require('./estado');
 const { mask } = require('./requisitos');
+const { paused } = require('./pausa');
 
 const MAX_ORDER = 4000;
 const MAX_MISSES = 10;
@@ -53,10 +54,6 @@ function logOrder(salaDir, entry) {
   } catch {
     return false;
   }
-}
-
-function paused(salaDir) {
-  return fs.existsSync(path.join(salaDir, '.sala', 'PAUSA'));
 }
 
 // The kit's guards (D13); every refusal is logged.
