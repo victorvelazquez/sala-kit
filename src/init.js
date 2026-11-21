@@ -127,4 +127,4 @@ function dondeTexto(r) {
   return `Ni sala ni miembro: ${r.dir}\n`;
 }
 
-module.exports = { init, initTexto, donde, dondeTexto, template, readText, create };
+module.exports = { init, initTexto, donde, dondeTexto, template, readText, create, salaBlock, SALA_START, SALA_END };

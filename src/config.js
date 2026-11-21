@@ -142,4 +142,4 @@ function loadConfig(dir) {
   return config;
 }
 
-module.exports = { validateConfig, loadConfig, ConfigError };
+module.exports = { validateConfig, loadConfig, ConfigError, SCHEMA };
