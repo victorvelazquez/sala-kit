@@ -12,7 +12,8 @@ const TABLE = [
   '| --- | --- | --- | --- | --- | --- | --- |',
   '| E1 | Primera | Se ve | — | Completada |  | — |',
 ].join('\n');
-const GOOD = { 'docs/ROADMAP.md': `# Hoja de ruta\n\n${HEADER}\n${TABLE}\n`, 'AGENTS.md': '# Reglas\n' };
+const BLOCK = '<!-- sala-kit:miembro:inicio -->\nbloque\n<!-- sala-kit:miembro:fin -->\n';
+const GOOD = { 'docs/ROADMAP.md': `# Hoja de ruta\n\n${HEADER}\n${TABLE}\n`, 'AGENTS.md': `# Reglas\n\n${BLOCK}` };
 
 function pushFiles(work, files) {
   for (const [file, content] of Object.entries(files)) {
@@ -48,7 +49,7 @@ test('a member that meets every requirement passes them all', (t) => {
   assert.equal(out.members[0].ok, true);
   assert.deepEqual(ids(out.members[0].requirements), [
     ['base-remote', true], ['roadmap-table', true], ['roadmap-header', true],
-    ['roadmap-states', true], ['agents-size', true], ['no-secrets', true],
+    ['roadmap-states', true], ['agents-size', true], ['member-block', true], ['no-secrets', true],
   ]);
 });
 
@@ -69,6 +70,7 @@ test('every failing requirement says why and the order to fix it', (t) => {
     { id: 'roadmap-header', detail: 'a la cabecera le faltan: **Qué sigue:**, **Qué lo bloquea:**' },
     { id: 'roadmap-states', detail: 'E2: «Lista» no es un estado' },
     { id: 'agents-size', detail: 'AGENTS.md tiene 17 KB; el máximo es 16 KB' },
+    { id: 'member-block', detail: 'AGENTS.md no tiene el bloque del miembro' },
   ]);
   for (const r of failing) assert.equal(typeof r.fix, 'string');
 });
@@ -135,7 +137,7 @@ test('a base missing on the remote fails, and what needs it is left unchecked', 
 
   assert.equal(m.ok, false);
   assert.match(m.requirements[0].detail, /^no se pudo traer origin\/develop: /);
-  assert.deepEqual(m.requirements.slice(1).map((r) => [r.ok, r.detail]), Array(5).fill(
+  assert.deepEqual(m.requirements.slice(1).map((r) => [r.ok, r.detail]), Array(6).fill(
     [null, 'sin comprobar: no se pudo leer origin/develop'],
   ));
 });
@@ -162,7 +164,7 @@ test('sala revisar <miembro> checks only that member; an unknown one is an error
 test('--texto lists what fails with its order', (t) => {
   const dir = tempDir(t);
   const core = memberRepo(dir, 'core');
-  pushFiles(core.work, { ...GOOD, 'AGENTS.md': 'x'.repeat(17 * 1024) });
+  pushFiles(core.work, { ...GOOD, 'AGENTS.md': BLOCK + 'x'.repeat(17 * 1024) });
   writeSala(dir, salaConfig([member('core', core.work)]));
 
   const res = runSala(dir, ['revisar', '--texto']);
@@ -171,7 +173,7 @@ test('--texto lists what fails with its order', (t) => {
   assert.equal(res.stdout, [
     'Sala prueba',
     'sala.json: cumple 1/1',
-    'core: cumple 5/6',
+    'core: cumple 6/7',
     '  agents-size: AGENTS.md tiene 17 KB; el máximo es 16 KB',
     '    orden: Recortá AGENTS.md por debajo de 16 KB: pasá a docs/ lo que no es una regla para agentes.',
     '',
