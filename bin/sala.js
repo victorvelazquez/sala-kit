@@ -15,6 +15,7 @@ const { fusionar, fusionarTexto } = require('../src/fusionar');
 const { reiniciar, reiniciarTexto, modelo, modeloTexto } = require('../src/reiniciar');
 const { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condiciones, condicionesTexto } = require('../src/adoptar');
 const { actualizar, actualizarTexto } = require('../src/actualizar');
+const { pausar, pausarTexto, seguir, seguirTexto, parseMinutes } = require('../src/pausa');
 const { motor, MotorError } = require('../src/motor');
 const { version } = require('../package.json');
 
@@ -98,6 +99,12 @@ Uso:
                                              sesión nueva, solo si la sesión está libre, sin pregunta,
                                              y el miembro está en su base limpia y al día; nunca cierra
                                              una terminal de la persona
+  sala pausar [--minutos <n>] [--texto] [--sala <carpeta>]
+                                             pone la sala en pausa (.sala/PAUSA): enviar, fusionar,
+                                             reiniciar y sus cadenas se niegan; con --minutos es una
+                                             pausa de prueba que vence sola; una pausa que ya está
+                                             puesta no se cambia
+  sala seguir [--texto] [--sala <carpeta>]   levanta la pausa; solo cuando la persona lo pide
   sala modelo [--texto] [--sala <carpeta>]   aplica el perfil de options.roomModel solo a la sesión de
                                              la sala, sin tocar la configuración global; si el perfil
                                              pide confirmación, la da la persona en la terminal
@@ -110,6 +117,7 @@ Opciones:
   --texto            salida para leer, en vez de JSON
   --retomar          con estado: el resumen corto, sin git
   --pregunta <id>    con responder: el id de la pregunta que mostró sala preguntas
+  --minutos <n>      con pausar: la pausa vence sola a los n minutos (hasta 1440)
   --id, --prefijo, --base, --remoto
                      con adoptar: el dato del miembro, en vez de deducirlo
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
@@ -139,6 +147,8 @@ const COMMANDS = {
   preguntas: { run: (config) => preguntas(config), texto: preguntasTexto },
   reiniciar: { run: (config, opts) => reiniciar(config, opts.sala, opts.member), texto: reiniciarTexto, member: 'required' },
   modelo: { run: (config, opts) => modelo(config, opts.sala), texto: modeloTexto },
+  pausar: { run: (config, opts) => pausar(opts.sala, opts.minutos), texto: pausarTexto },
+  seguir: { run: (config, opts) => seguir(opts.sala), texto: seguirTexto },
   fusionar: {
     run: (config, opts) => fusionar(config, opts.sala, opts.member, opts.order),
     texto: fusionarTexto,
@@ -163,7 +173,7 @@ function fail(error, details) {
 const ADOPT_FLAGS = { '--id': 'id', '--prefijo': 'prefijo', '--base': 'base', '--remoto': 'remoto' };
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, pregunta: null, adopt: {}, texto: false, retomar: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, adopt: {}, texto: false, retomar: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
@@ -177,6 +187,9 @@ function parseArgs(argv) {
       if (!argv[i + 1]) throw new ConfigError('--pregunta necesita el id de la pregunta');
       if (opts.pregunta !== null) throw new ConfigError('--pregunta va una sola vez');
       opts.pregunta = argv[(i += 1)];
+    } else if (arg === '--minutos' && opts.command === 'pausar') {
+      if (opts.minutos !== null) throw new ConfigError('--minutos va una sola vez');
+      opts.minutos = parseMinutes(argv[(i += 1)]);
     } else if (arg === '--sala') {
       if (!argv[i + 1]) throw new ConfigError('--sala necesita una carpeta');
       opts.sala = path.resolve(argv[(i += 1)]);

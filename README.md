@@ -46,6 +46,7 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
 | `/sala-adoptar [carpetas]` | Adopta las carpetas con `sala adoptar`, las revisa y, con tu OK por miembro, le manda la orden de ponerse en condiciones (`sala condiciones`) |
 | `/sala-soltar <miembro>` | Con tu OK, saca al miembro de la sala con `sala soltar`; su repositorio queda igual |
+| `/sala-pausar [minutos \| seguir]` | Pone la sala en pausa con `sala pausar` (con minutos, una pausa de prueba que vence sola) o la levanta con `sala seguir` |
 
 ## `sala.json`
 
@@ -138,7 +139,7 @@ sala esperar <miembro> [--texto] [--sala <carpeta>]
 
 `sala enviar` deja la orden (por ejemplo `/flow-avance`) en la bandeja de la sesión del miembro, como `send_prompt`, y espera hasta 10 s a que Gentle Shell la acepte. Antes de escribir nada comprueba las guardas del kit (D13):
 
-- la sala no está en pausa: si existe `.sala/PAUSA`, no manda nada (los comandos para pausar y seguir llegan con SK2e, D38);
+- la sala no está en pausa: si existe `.sala/PAUSA` y no venció, no manda nada (ver `sala pausar`);
 - el miembro está en `sala.json` y tiene **una sola** sesión viva, que es suya (con dos, se niega y dice sus IDs);
 - esa sesión no tiene una pregunta abierta ni está bloqueada;
 - la orden se puede leer: no está vacía (tampoco hecha solo de caracteres invisibles), no pasa de 4000 caracteres y no tiene caracteres de control ni de dirección (D39). Tampoco puede empezar con `-`.
@@ -148,6 +149,17 @@ Gentle Shell suma sus propias guardas: niega los comandos que solo corren en la 
 Git Bash convierte `/flow-avance` en una ruta (`C:/Program Files/Git/flow-avance`) antes de que la CLI la vea. `sala enviar` reconoce esa ruta y se niega; desde Git Bash, corré `MSYS_NO_PATHCONV=1 sala enviar core /flow-avance`.
 
 `sala esperar` vigila el estado de la sesión en el feed y termina cuando el miembro termina **de verdad**: `idle` durante 3 s seguidos, para no confundir el momento antes de que arranque una orden recién mandada. Mientras dice `waiting` (le quedan subagentes o trabajos) sigue esperando (D15). Termina enseguida, con `state: "needs-you"` y la pregunta, si el miembro te necesita. Falla si la sesión se cierra o si pasan 30 minutos. Está pensada para que la sala la corra como trabajo en segundo plano y duerma sin gastar tokens hasta que termine.
+
+## `sala pausar` y `sala seguir`
+
+```
+sala pausar [--minutos <n>] [--texto] [--sala <carpeta>]
+sala seguir [--texto] [--sala <carpeta>]
+```
+
+`sala pausar` escribe `.sala/PAUSA` y, mientras exista, la sala no manda nada: `sala enviar`, `sala condiciones`, `sala reiniciar` y cada paso de `sala fusionar` se niegan diciendo que la sala está en pausa (D38). Lo que un miembro ya está haciendo sigue. Con `--minutos <n>` (mayor que 0 y hasta 1440, se aceptan decimales) es una pausa de prueba que vence sola; sin él dura hasta `sala seguir`. Una pausa que ya está puesta no se cambia, para que una de prueba no acorte una sin vencimiento. Un `.sala/PAUSA` vacío o que no se puede leer cuenta como una pausa sin vencimiento.
+
+`sala seguir` borra `.sala/PAUSA` y dice si la sala estaba en pausa. Lo pide solo la persona, con `/sala-pausar seguir`. La pausa no reemplaza el OK de cada fusión (D19).
 
 ## `sala preguntas` y `sala responder`
 
