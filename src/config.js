@@ -97,8 +97,9 @@ function validateConfig(raw) {
   unknownKeys(raw, TOP_KEYS, '', errors);
   if (!isText(raw.kit)) errors.push('kit: falta la versión del kit');
   if (!isText(raw.name)) errors.push('name: falta');
-  if (!Array.isArray(raw.members) || raw.members.length === 0) {
-    errors.push('members: tiene que haber al menos un miembro');
+  // A room made by `sala init` has no members until it adopts them.
+  if (!Array.isArray(raw.members)) {
+    errors.push('members: debe ser una lista de miembros');
   } else {
     const seen = { ids: new Set(), prefixes: new Set() };
     raw.members.forEach((m, i) => validateMember(m, i, seen, errors));

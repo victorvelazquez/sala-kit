@@ -2,7 +2,7 @@
 
 El motor reutilizable de una **sala**: una sesión de Gentle Shell que coordina varios repositorios (los **miembros**) mientras una persona decide.
 
-> Estado: **fase 2**. La CLI `sala` tiene `sala estado`, `sala plan`, `sala revisar`, `sala abrir` y `sala mostrar`.
+> Estado: **fase 3**. La CLI `sala` crea una sala (`sala init`), la mira (`sala estado`, `sala plan`, `sala revisar`), abre y muestra sesiones, manda órdenes, junta preguntas y juzga entregas; los comandos `/sala-*` la usan desde Gentle Shell.
 
 ## La idea en tres piezas
 
@@ -21,6 +21,28 @@ npm link
 ```
 
 Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar es `git pull`. Para quitarlo: `npm unlink -g sala-kit`. Sin instalar, lo mismo se corre con `node bin/sala.js`.
+
+## `sala init` y los comandos de la sala
+
+`sala init [--sala <carpeta>]` crea una sala en la carpeta (la actual por defecto; si no existe, la crea):
+
+| Archivo | Qué deja |
+|---|---|
+| `sala.json` | La sala sin miembros, con el nombre de la carpeta. Los miembros se suman a mano o, más adelante, con `/sala-adoptar` |
+| `AGENTS.md` | El bloque administrado de la sala entre `<!-- sala-kit:sala:inicio -->` y `<!-- sala-kit:sala:fin -->`: qué es la sala, sus comandos y la regla de preguntas |
+| `.gitignore` | La línea `.sala/`, el estado local que no se commitea |
+
+**Nunca pisa nada.** Lo que ya existe se saltea y la salida dice qué hizo y qué salteó; un `sala.json` que ya estaba y no es válido se saltea con un aviso. Antes de escribir lee todo: si no puede leer un archivo, no escribe ninguno. Se niega en la carpeta de un miembro. Si `AGENTS.md` ya existe con reglas propias y sin las marcas, queda igual, y el bloque va a `AGENTS.md.sugerido`, con un aviso: revisá si alguna regla choca con el bloque y pasalo a mano, con sus marcas. Si `AGENTS.md` ya tiene el bloque, no se toca: ponerlo al día es trabajo de `sala actualizar`. El bloque no dice que gana: si una regla de afuera lo contradice, la sala le pregunta a la persona.
+
+`sala donde [--sala <carpeta>]` dice si la carpeta es una `sala` (tiene `sala.json`), un `miembro` (su `AGENTS.md` tiene el bloque del miembro) o `ninguna`. Es la guarda de los comandos de la sala, que se instalan globales con el kit (`prompts/` en `package.json`) y se niegan fuera de una sala:
+
+| Comando | Qué hace |
+|---|---|
+| `/sala-plan` | Muestra el plan numerado; por cada número que aprobás, le manda la tarea a su miembro |
+| `/sala-estado` | La foto de los miembros y sus sesiones, primero los que te necesitan. Solo lee |
+| `/sala-orden <miembro> <orden>` | Manda la orden tal cual con `sala enviar` y espera a que el miembro termine o te necesite |
+| `/sala-entregar <miembro>` | Le pide la entrega (`/flow-ship` hasta que exista `/miembro-entregar`), espera y muestra el veredicto |
+| `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente (`/flow-next` hasta que exista `/miembro-tarea`). No es `sala seguir`, que levanta una pausa |
 
 ## `sala.json`
 
@@ -44,6 +66,7 @@ Va en la carpeta de la sala. Se edita a mano:
 | `schema` | `1` |
 | `kit` | La versión del kit con la que se escribió |
 | `name` | El nombre de la sala |
+| `members` | La lista de miembros. Puede estar vacía: así la deja `sala init` |
 | `members[].id` | Minúsculas, dígitos y guiones, sin repetir. Es como se nombra al miembro en todos los comandos |
 | `members[].prefix` | Mayúsculas y dígitos, sin repetir: el prefijo de los IDs de su roadmap (`CORE-E09`) |
 | `members[].path` | Ruta absoluta a la raíz del repo |
