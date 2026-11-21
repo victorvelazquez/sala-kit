@@ -95,6 +95,8 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 - **D16.** **El veredicto tiene reglas por comando**, definidas en el kit y no en el prompt. Por ejemplo:
   - después de entregar: rama, último commit, PR y CI;
   - después de volver a la base: en la base, limpio y al día.
+
+  Las reglas son por resultado (`entrega` y `base`) y los comandos son alias: `miembro-entregar` y `miembro-base` (D21) son los definitivos, y `flow-ship`, `flow-pr` y `flow-base` son un puente que se quita en SK5c (D26). Decidido por la persona el 2026-11-21, en SK2d.
 - **D17.** **Preguntas.** Toda decisión de la sala con alternativas finitas se pregunta con `ask_user_choice`: la opción recomendada primero y texto libre solo si la respuesta es abierta. Las preguntas de un miembro llegan por `pendingQuestion` del feed y **la sala las muestra completas en su chat**, de cualquier clase. La persona contesta libremente en el input de la sala, y la sala **nunca contesta por su cuenta**. Cómo llega la respuesta al miembro depende de la clase de pregunta:
 
 | Clase de pregunta | Por el feed (sesión en Orca o Windows Terminal) | Por RPC (SK7) |
