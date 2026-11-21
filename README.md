@@ -123,6 +123,21 @@ Git Bash convierte `/flow-avance` en una ruta (`C:/Program Files/Git/flow-avance
 
 `sala esperar` vigila el estado de la sesión en el feed y termina cuando el miembro termina **de verdad**: `idle` durante 3 s seguidos, para no confundir el momento antes de que arranque una orden recién mandada. Mientras dice `waiting` (le quedan subagentes o trabajos) sigue esperando (D15). Termina enseguida, con `state: "needs-you"` y la pregunta, si el miembro te necesita. Falla si la sesión se cierra o si pasan 30 minutos. Está pensada para que la sala la corra como trabajo en segundo plano y duerma sin gastar tokens hasta que termine.
 
+## `sala veredicto`
+
+```
+sala veredicto <miembro> <comando> [--texto] [--sala <carpeta>]
+```
+
+Después de mandar un comando, `sala veredicto` comprueba en JSON que haya dejado hecho lo que debía. Las reglas son fijas y están en el kit, no en el prompt (D16). Solo lee: nunca cambia el miembro.
+
+| Comando | Regla | Qué comprueba |
+|---|---|---|
+| `miembro-entregar` (y, de puente, `flow-ship` y `flow-pr`) | `entrega` | está en una rama que no es la base, el árbol está limpio, el último commit está en el remoto, hay un PR abierto de esa rama, su CI está en verde (o no tiene) y la fila de la tarea cuyo ID cierra el título del PR dice `Completada` en el roadmap del último commit (D45) |
+| `miembro-base` (y, de puente, `flow-base`) | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto |
+
+El comando va con o sin `/`, y lo que sigue al primer espacio no cuenta: `/flow-ship SK2d` es `flow-ship`. Como solo lee, también reconoce el comando cuando Git Bash lo convirtió en ruta (`C:/Program Files/Git/flow-ship`), sin hacer falta `MSYS_NO_PATHCONV=1`. Los nombres de las reglas (`entrega` y `base`) también sirven como comando. Los `/flow-*` son un puente: los miembros los usan hasta que la fase 5 los cambia por los `/miembro-*` (D26), y ahí se quitan. Cada comprobación sale con su `id`, si pasó y el motivo; `ok` es `true` solo si pasan todas. Después de una entrega, el JSON trae también la rama, el commit, el PR con su CI y el ID de la tarea.
+
 ## `sala plan`
 
 ```

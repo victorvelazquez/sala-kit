@@ -8,6 +8,7 @@ const { plan, planTexto } = require('../src/plan');
 const { revisar, revisarTexto } = require('../src/revisar');
 const { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaError } = require('../src/abrir');
 const { enviar, enviarTexto, esperar, esperarTexto } = require('../src/enviar');
+const { veredicto, veredictoTexto } = require('../src/veredicto');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -38,6 +39,11 @@ Uso:
   sala esperar <miembro> [--texto] [--sala <carpeta>]
                                              espera a que el miembro termine de verdad (sin subagentes
                                              ni trabajos) o te necesite; tope de 30 minutos
+  sala veredicto <miembro> <comando> [--texto] [--sala <carpeta>]
+                                             comprueba lo que el comando debía dejar hecho: después de
+                                             miembro-entregar (o flow-ship, flow-pr), la rama, el commit
+                                             subido, el PR, su CI y la fila Completada; después de
+                                             miembro-base (o flow-base), la base limpia y al día
 
 Opciones:
   --texto            salida para leer, en vez de JSON
@@ -55,8 +61,9 @@ const COMMANDS = {
   revisar: { run: (config, opts) => revisar(config, opts.sala, opts.member), texto: revisarTexto, member: true },
   abrir: { run: (config, opts) => abrir(config, opts.sala, opts.member), texto: abrirTexto, member: 'required' },
   mostrar: { run: (config, opts) => mostrar(config, opts.sala, opts.member), texto: mostrarTexto, member: 'required' },
-  enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: true },
+  enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: 'una orden' },
   esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
+  veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
 };
 
 function fail(error, details) {
@@ -91,7 +98,7 @@ async function main() {
     const command = COMMANDS[opts.command];
     if (!command) return fail(`subcomando desconocido: ${opts.command}`);
     if (command.member === 'required' && !opts.member) return fail(`sala ${opts.command} necesita un miembro`);
-    if (command.order && opts.order === null) return fail(`sala ${opts.command} necesita una orden`);
+    if (command.order && opts.order === null) return fail(`sala ${opts.command} necesita ${command.order}`);
     const result = await command.run(loadConfig(opts.sala), opts);
     process.stdout.write(opts.texto ? command.texto(result, opts) : `${JSON.stringify(result)}\n`);
   } catch (err) {
