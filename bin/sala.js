@@ -10,11 +10,17 @@ const { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaErr
 const { enviar, enviarTexto, esperar, esperarTexto } = require('../src/enviar');
 const { veredicto, veredictoTexto } = require('../src/veredicto');
 const { preguntas, preguntasTexto, responder, responderTexto } = require('../src/responder');
+const { init, initTexto, donde, dondeTexto } = require('../src/init');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
 
 Uso:
+  sala init [--texto] [--sala <carpeta>]     crea una sala nueva: sala.json sin miembros, el AGENTS.md con
+                                             el bloque de la sala y .sala/ en .gitignore; nunca pisa,
+                                             dice qué hizo y qué salteó
+  sala donde [--texto] [--sala <carpeta>]    dice si la carpeta es una sala, un miembro o ninguna:
+                                             la guarda de los comandos /sala-*
   sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo,
                                              y su sesión viva de Gentle Shell: qué hace y si te necesita
   sala estado --retomar [--texto] [--sala <carpeta>]
@@ -64,6 +70,8 @@ Opciones:
 `;
 
 const COMMANDS = {
+  init: { run: (opts) => init(opts.sala), texto: initTexto, noConfig: true },
+  donde: { run: (opts) => donde(opts.sala), texto: dondeTexto, noConfig: true },
   estado: {
     run: (config, opts) => (opts.retomar ? retomar(config, opts.sala) : estado(config)),
     texto: (result, opts) => (opts.retomar ? retomarTexto(result) : estadoTexto(result)),
@@ -121,7 +129,7 @@ async function main() {
     if (!command) return fail(`subcomando desconocido: ${opts.command}`);
     if (command.member === 'required' && !opts.member) return fail(`sala ${opts.command} necesita un miembro`);
     if (command.order && opts.order === null) return fail(`sala ${opts.command} necesita ${command.order}`);
-    const result = await command.run(loadConfig(opts.sala), opts);
+    const result = await (command.noConfig ? command.run(opts) : command.run(loadConfig(opts.sala), opts));
     process.stdout.write(opts.texto ? command.texto(result, opts) : `${JSON.stringify(result)}\n`);
   } catch (err) {
     if (err instanceof ConfigError) return fail(err.message, err.details);

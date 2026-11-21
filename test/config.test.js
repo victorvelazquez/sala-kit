@@ -26,6 +26,14 @@ test('a config like the D4 example is valid, and remote defaults to origin', () 
   assert.equal(res.config.members[0].remote, 'origin');
 });
 
+test('a new room without members is valid, but members must still be a list', () => {
+  const config = valid();
+  config.members = [];
+  assert.deepEqual(validateConfig(config).errors, []);
+  delete config.members;
+  assert.deepEqual(validateConfig(config).errors, ['members: debe ser una lista de miembros']);
+});
+
 test('every problem is reported with where it is', () => {
   const config = valid();
   config.schema = 2;
@@ -84,11 +92,11 @@ test('a base that is an option or a URL is rejected without echoing it', () => {
 
 test('sala estado with an invalid sala.json lists the errors and exit 1', (t) => {
   const dir = tempDir(t);
-  writeSala(dir, { schema: 1, kit: '0.1.0', name: 'x', members: [] });
+  writeSala(dir, { schema: 1, kit: '0.1.0', name: 'x', members: 'core' });
   const res = runSala(dir, ['estado']);
   assert.equal(res.code, 1);
   assert.deepEqual(JSON.parse(res.stderr), {
     error: 'sala.json no es válido',
-    details: ['members: tiene que haber al menos un miembro'],
+    details: ['members: debe ser una lista de miembros'],
   });
 });
