@@ -4,77 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { tempDir, writeSala, salaConfig } = require('./helpers');
-
-const BIN = path.join(__dirname, '..', 'bin', 'sala.js');
-const FAKE_GH = path.join(__dirname, 'fixtures', 'fake-gh.js');
-
-// Runs the CLI without blocking, so the test can play Gentle Shell meanwhile.
-function runAsync(cwd, args, env) {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, [BIN, ...args], {
-      cwd,
-      env: { ...process.env, SALA_GH: FAKE_GH, FAKE_GH_OUT: '[]', ...env },
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.on('data', (d) => { stderr += d; });
-    child.on('close', (code) => resolve({ code, stdout, stderr }));
-  });
-}
-
-// A sala with members core and web, and a feed folder with inboxes.
-function setup(t) {
-  const dir = tempDir(t);
-  const core = path.join(dir, 'core');
-  const web = path.join(dir, 'web');
-  fs.mkdirSync(core);
-  fs.mkdirSync(web);
-  const agentDir = path.join(dir, 'agent');
-  writeSala(dir, salaConfig([
-    { id: 'core', prefix: 'CORE', path: core, base: 'main' },
-    { id: 'web', prefix: 'WEB', path: web, base: 'main' },
-  ]));
-  const env = { SALA_FEED_ROOTS: agentDir, SALA_SEND_TIMEOUT_MS: '3000', SALA_WAIT_POLL_MS: '50', SALA_WAIT_SETTLE_MS: '200' };
-  const session = (name, cwd, extra = {}) => {
-    const sessions = path.join(agentDir, 'desktop', 'sessions');
-    fs.mkdirSync(sessions, { recursive: true });
-    fs.mkdirSync(path.join(agentDir, 'desktop', 'inbox', name), { recursive: true });
-    fs.mkdirSync(path.join(agentDir, 'desktop', 'outbox', name), { recursive: true });
-    fs.writeFileSync(path.join(sessions, `${name}.json`), JSON.stringify({
-      schema: 'gentle-shell.desktop-feed/v1',
-      identity: { sessionId: `id-${name}`, cwd, realCwd: cwd, pid: process.pid, mode: 'tui' },
-      activity: { state: 'idle', label: 'Idle' },
-      pendingQuestion: null,
-      ...extra,
-    }));
-  };
-  const inbox = (name) => {
-    const d = path.join(agentDir, 'desktop', 'inbox', name);
-    return fs.existsSync(d) ? fs.readdirSync(d) : [];
-  };
-  // Plays Gentle Shell: answers every action left in the inbox and records it.
-  const answer = (name, reply = { ok: true, data: { queued: false } }) => {
-    const seen = [];
-    const timer = setInterval(() => {
-      for (const file of inbox(name)) {
-        const full = path.join(agentDir, 'desktop', 'inbox', name, file);
-        seen.push(JSON.parse(fs.readFileSync(full, 'utf8')));
-        fs.rmSync(full);
-        fs.writeFileSync(path.join(agentDir, 'desktop', 'outbox', name, file), JSON.stringify(reply));
-      }
-    }, 20);
-    t.after(() => clearInterval(timer));
-    return seen;
-  };
-  const log = () => {
-    const file = path.join(dir, '.sala', 'ordenes.log');
-    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
-  };
-  return { dir, core, web, agentDir, env, session, inbox, answer, log };
-}
+const { feedSala: setup, runAsync } = require('./helpers');
 
 test('sala enviar leaves send_prompt in the member session inbox and logs the order', async (t) => {
   const s = setup(t);
