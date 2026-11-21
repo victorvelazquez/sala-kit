@@ -123,6 +123,21 @@ Git Bash convierte `/flow-avance` en una ruta (`C:/Program Files/Git/flow-avance
 
 `sala esperar` vigila el estado de la sesión en el feed y termina cuando el miembro termina **de verdad**: `idle` durante 3 s seguidos, para no confundir el momento antes de que arranque una orden recién mandada. Mientras dice `waiting` (le quedan subagentes o trabajos) sigue esperando (D15). Termina enseguida, con `state: "needs-you"` y la pregunta, si el miembro te necesita. Falla si la sesión se cierra o si pasan 30 minutos. Está pensada para que la sala la corra como trabajo en segundo plano y duerma sin gastar tokens hasta que termine.
 
+## `sala preguntas` y `sala responder`
+
+```
+sala preguntas [--texto] [--sala <carpeta>]
+sala responder <miembro> <opción> --pregunta <id> [--texto] [--sala <carpeta>]
+```
+
+`sala preguntas` lista la pregunta abierta de cada sesión viva de todos los miembros, completa: el texto, las opciones, su `id` y dónde se contesta (D17). La `class` dice cómo:
+
+- `option`: una pregunta de una opción. La sala la contesta con `sala responder`.
+- `consent`: un consentimiento. Se contesta en la pestaña del miembro; Gentle Shell nunca lo acepta por la bandeja.
+- `terminal`: cualquier otra (varias preguntas, un diálogo, una clase que el kit no conoce). Se contesta en la pestaña del miembro.
+
+`sala responder` entrega la opción que eligió la persona, como `answer_question` con el índice de la opción. La sala nunca contesta por su cuenta: la respuesta sale solo si `--pregunta` es el `id` que mostró `sala preguntas` y esa pregunta sigue abierta, y si la respuesta es exactamente una de sus opciones. Si la pregunta cambió, se niega. A un consentimiento o una pregunta de la terminal no la contesta: muestra la terminal de Orca que abrió la sala, o dice el título de su pestaña de Windows Terminal. Cada intento queda en `.sala/ordenes.log`, con los secretos enmascarados.
+
 ## `sala veredicto`
 
 ```
