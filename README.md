@@ -331,7 +331,16 @@ El formato de commits y PR de D23 lo revisa el kit antes de llamar al motor, en 
 - **Con `options.jira` en `true`**, el título tiene que llevar una clave de Jira (`ABC-123`). Apagado no se pide.
 - **`options.language`** (`en` por defecto, o `es`) elige el idioma de las secciones del PR: Summary, Changes, Validation, Risks y Out of scope, con «Not run» donde no se corrió una prueba.
 
-Todavía no lo usa ningún comando: `/miembro-entregar` llega en SK5b.
+### `sala motor`, `/miembro-entregar` y `/miembro-base`
+
+`sala motor commit|pr <argumentos>` corre el motor en la carpeta actual, sin shell: los argumentos le llegan tal cual, y su salida y su código de salida vuelven sin cambios. Hay una sola excepción, el paso que sella el PR (`sala motor pr --prepare --handle <h>`). Antes de llamarlo, el kit lee el título que quedó en el `intent.json` del motor y lo revisa con `src/formato.js`. Si no cumple, se niega y no llama al motor: el pedido queda y alcanza con corregir el título y repetir el paso. Con `--tarea <ID>`, el ID del título tiene que ser ese; con `--jira`, tiene que llevar una clave de Jira. Esos dos flags son del kit y solo valen en ese paso, donde se sacan antes de llamar al motor; en los demás pasos le llegan al motor, que los rechaza. Si el motor no arranca o termina por una señal, `sala motor` lo dice y sale con 1.
+
+Los comandos del miembro se cargan con el kit y se niegan fuera de un miembro (`sala donde`):
+
+- **`/miembro-entregar [ID]`** hace el commit y el PR de la tarea terminada con `sala motor`, sin `/flow-*` ni `git commit`, y comprueba el PR con `gh`. Nunca fusiona.
+- **`/miembro-base`** vuelve a la rama base y la trae del remoto solo con avance rápido. Nunca borra ramas, ni guarda en el stash, ni fuerza nada.
+
+El motor corre en la conversación del miembro, sin subagente: el kit todavía no instala agentes (SK5d). La sala todavía manda `/flow-*`: pasa a mandar estos comandos en SK5f.
 
 ## Documentos
 

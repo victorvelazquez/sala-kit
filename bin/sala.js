@@ -15,6 +15,7 @@ const { fusionar, fusionarTexto } = require('../src/fusionar');
 const { reiniciar, reiniciarTexto, modelo, modeloTexto } = require('../src/reiniciar');
 const { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condiciones, condicionesTexto } = require('../src/adoptar');
 const { actualizar, actualizarTexto } = require('../src/actualizar');
+const { motor, MotorError } = require('../src/motor');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -100,6 +101,10 @@ Uso:
   sala modelo [--texto] [--sala <carpeta>]   aplica el perfil de options.roomModel solo a la sesión de
                                              la sala, sin tocar la configuración global; si el perfil
                                              pide confirmación, la da la persona en la terminal
+  sala motor commit|pr <argumentos del motor> [--tarea <ID>] [--jira]  (estos dos, solo al sellar el PR)
+                                             en un miembro: corre el motor de entrega del kit (engine/)
+                                             sin shell, con su salida tal cual; antes de sellar el PR
+                                             revisa su título (lo usa /miembro-entregar)
 
 Opciones:
   --texto            salida para leer, en vez de JSON
@@ -186,6 +191,16 @@ function parseArgs(argv) {
 
 async function main() {
   let opts;
+  // The engine's arguments go to it as they are: parseArgs would refuse its flags.
+  if (process.argv[2] === 'motor') {
+    try {
+      process.exitCode = await motor(process.argv.slice(3));
+    } catch (err) {
+      if (err instanceof MotorError) return fail(err.message, err.details);
+      throw err;
+    }
+    return;
+  }
   try {
     opts = parseArgs(process.argv.slice(2));
     if (opts.command === '--version') return void process.stdout.write(`${version}\n`);

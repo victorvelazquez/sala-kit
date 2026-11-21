@@ -16,3 +16,4 @@ La primera versión. `sala.json` tiene `schema: 1`.
 - **Los bloques administrados** de la sala y del miembro, en `templates/`.
 - **El motor de entrega** en `engine/`: la copia de `flow-commit` y `flow-pr` del commit `1c60a98` de flow-skills (0.3.1), con su origen en `engine/source.json`. Todavía no lo usa ningún comando.
 - **El formato de commits y PR** (D23) en `src/formato.js`: el título del PR con la regla del commit y el ID de la tarea al final, el aviso de 72 caracteres, Jira con su interruptor y el idioma de las secciones del PR. `options.language` ahora solo acepta `es` o `en`.
+- **La entrega del miembro con el motor del kit**: `sala motor commit|pr`, que revisa el título del PR antes de sellarlo, y los comandos `/miembro-entregar` y `/miembro-base`. La sala sigue mandando `/flow-*` hasta SK5f.
