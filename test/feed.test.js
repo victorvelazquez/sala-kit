@@ -164,16 +164,21 @@ test('an action reaches the inbox and its answer is read; without an answer it e
   assert.equal(noInbox.error.code, 'no_inbox');
 });
 
-test('C1 controls, controls in an option and a disguised consent are refused without writing', async (t) => {
+test('C1 controls, an option out of the question and a disguised consent are refused without writing', async (t) => {
   const dir = tempDir(t);
   const agentDir = path.join(dir, 'agent');
   const inbox = inboxOf(agentDir, 's1');
-  const target = { agentDir, name: 's1', sessionId: 's1' };
+  // answer_question carries the option index; the label it points to is the session's own.
+  const question = { id: 'c1', kind: 'choice', terminalOnly: false, options: ['gr\u200banted', 'No'] };
+  const target = { agentDir, name: 's1', sessionId: 's1', question };
   for (const [kind, args] of [
     ['send_prompt', { text: 'a\u009b31m' }],
     ['send_prompt', { text: 'a\u0085b' }],
-    ['answer_question', { toolCallId: 'c1', option: 'a\u001b[2J', via: 'session' }],
-    ['answer_question', { toolCallId: 'c1', option: 'granted\u200b', via: 'session' }],
+    ['answer_question', { toolCallId: 'c1', option: 'No', via: 'session' }],
+    ['answer_question', { toolCallId: 'c1', option: 0, via: 'session' }],
+    ['answer_question', { toolCallId: 'c1', option: 2, via: 'session' }],
+    ['answer_question', { toolCallId: 'c1', option: 1.5, via: 'session' }],
+    ['answer_question', { toolCallId: 'c2', option: 1, via: 'session' }],
   ]) {
     const res = await sendAction(target, kind, args, { timeoutMs: 100 });
     assert.equal(res.error.code, 'not_allowed', JSON.stringify(args));

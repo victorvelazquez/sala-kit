@@ -9,6 +9,7 @@ const { revisar, revisarTexto } = require('../src/revisar');
 const { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaError } = require('../src/abrir');
 const { enviar, enviarTexto, esperar, esperarTexto } = require('../src/enviar');
 const { veredicto, veredictoTexto } = require('../src/veredicto');
+const { preguntas, preguntasTexto, responder, responderTexto } = require('../src/responder');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -39,6 +40,15 @@ Uso:
   sala esperar <miembro> [--texto] [--sala <carpeta>]
                                              espera a que el miembro termine de verdad (sin subagentes
                                              ni trabajos) o te necesite; tope de 30 minutos
+  sala preguntas [--texto] [--sala <carpeta>]
+                                             las preguntas abiertas de todos los miembros, completas,
+                                             y dónde se contesta cada una: desde la sala o en la
+                                             pestaña del miembro (consentimientos y las demás)
+  sala responder <miembro> <opción> --pregunta <id> [--texto] [--sala <carpeta>]
+                                             entrega la opción que elegiste a una pregunta de una
+                                             opción, si sigue siendo la que mostró sala preguntas, y
+                                             la anota en .sala/ordenes.log; a un consentimiento o una
+                                             pregunta de la terminal no la contesta: muestra la pestaña
   sala veredicto <miembro> <comando> [--texto] [--sala <carpeta>]
                                              comprueba lo que el comando debía dejar hecho: después de
                                              miembro-entregar (o flow-ship, flow-pr), la rama, el commit
@@ -48,6 +58,7 @@ Uso:
 Opciones:
   --texto            salida para leer, en vez de JSON
   --retomar          con estado: el resumen corto, sin git
+  --pregunta <id>    con responder: el id de la pregunta que mostró sala preguntas
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
   --version          la versión del kit
 `;
@@ -64,6 +75,13 @@ const COMMANDS = {
   enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: 'una orden' },
   esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
   veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
+  preguntas: { run: (config) => preguntas(config), texto: preguntasTexto },
+  responder: {
+    run: (config, opts) => responder(config, opts.sala, opts.member, opts.order, opts.pregunta),
+    texto: responderTexto,
+    member: 'required',
+    order: 'una opción',
+  },
 };
 
 function fail(error, details) {
@@ -72,12 +90,16 @@ function fail(error, details) {
 }
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, texto: false, retomar: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, texto: false, retomar: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
-    else if (arg === '--sala') {
+    else if (arg === '--pregunta' && opts.command === 'responder') {
+      if (!argv[i + 1]) throw new ConfigError('--pregunta necesita el id de la pregunta');
+      if (opts.pregunta !== null) throw new ConfigError('--pregunta va una sola vez');
+      opts.pregunta = argv[(i += 1)];
+    } else if (arg === '--sala') {
       if (!argv[i + 1]) throw new ConfigError('--sala necesita una carpeta');
       opts.sala = path.resolve(argv[(i += 1)]);
     } else if (arg === '--version' || arg === '--help' || arg === '-h') opts.command = opts.command || arg;
