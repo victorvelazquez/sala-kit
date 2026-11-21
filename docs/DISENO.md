@@ -85,7 +85,7 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 | Adaptador | Puerto | Cuándo |
 |---|---|---|
-| **feed** de Gentle Shell (`desktop-feed/v1`) | feed | Siempre, para toda sesión. Ojo (SK2a): la política de seguridad de Gentle AI bloquea leer `~/.gentle-shell/agent/desktop` desde la sesión del agente; cómo se lee de forma permitida se decide antes de SK2f |
+| **feed** de Gentle Shell (`desktop-feed/v1`) | feed | Siempre, para toda sesión. La política de seguridad de Gentle AI bloquea la carpeta del feed a las tools del agente (SK2a); la lee y escribe solo el código del kit, con los límites de D50 |
 | **Orca**: `orca terminal create --worktree path:<miembro> --title <miembro> --command gentle-shell`, `switch` y `close` | lanzador | Por defecto. La terminal se abre dentro del proyecto que el repo ya tiene en Orca (comprobado en SK2a: unos 2 s, arranca en PowerShell; después de `close`, `show` sigue respondiendo con `connected: false`, así que la sesión viva se mira con `list`) |
 | **Windows Terminal**: `wt -w 0 new-tab -d <miembro> --title <miembro> gentle-shell` | lanzador | Si no hay Orca. Debería abrir una pestaña más en la ventana abierta, pero en SK2a abrió una ventana nueva: falta confirmar si había una abierta |
 | **RPC de pi**: sesiones sin pantalla que hospeda el propio kit (SK7) | los dos | Opcional, más adelante. Es el único que contesta todas las clases de pregunta |
@@ -178,7 +178,7 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 | Qué | Por qué importa | Dónde se comprueba |
 |---|---|---|
-| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question`. En SK2a no se pudo medir: la política de seguridad bloquea la carpeta del feed. Antes, decidir con la persona cómo se lee de forma permitida | D13, D17 y D46 | SK2f |
+| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question`. En SK2a no se pudo medir porque la política de seguridad bloquea la carpeta del feed a las tools del agente; se mide con la CLI, según D50. SK2f ya lee el feed real con la CLI; falta mandar una acción | D13, D17, D46 y D50 | SK2c |
 | Que `wt -w 0 new-tab` abra una pestaña en la ventana abierta. En SK2a abrió una ventana nueva | D14 | SK2b |
 | Por qué falla el `git fetch` dentro de `estado-vivo.sh` | Que `sala estado` no repita el error | SK1a |
 | Que `apply_profile` por la bandeja ligue el perfil solo a esa sesión. Resuelve la duda anterior de pasar un modelo por parámetro | D28 | SK3c |
@@ -259,3 +259,13 @@ Salen del análisis de Gentle Shell Desktop (PR 3277 de gentle-shell, `docs/gent
   - **Parte con modelo, a pedido:** `/sala-novedades` lee qué cambió en Gentle Shell desde la última versión revisada (su changelog y sus documentos del feed). Dice qué hay que **ajustar** para seguir funcionando y qué es **nuevo y útil**; lo que la persona elija entra como filas del roadmap.
 - **D48. Consentimientos que pasan por la sala.** Una respuesta de consentimiento solo la entrega un transporte que pueda hacerlo (RPC, SK7). `sala responder` la entrega únicamente si comprueba, de forma mecánica, que **el último mensaje escrito por la persona en la sala** (no uno del agente) es posterior a la pregunta y contiene esa respuesta. Además queda en el registro. Es zona crítica y va en PR propio, con una prueba que reproduce a la sala intentando contestar sola. Por el feed, Gentle Shell ya niega los consentimientos: se contestan en la pestaña del miembro.
 - **D49. Contestar desde cualquier dispositivo.** Decisión de la persona del 2026-11-20: contestar desde el teléfono es tan seguro como desde la computadora. El kit no restringe **dónde** contesta la persona; solo controla que un **agente** no conteste por ella (D17 y D48).
+
+## Decisiones de la quinta ronda (2026-11-20)
+
+- **D50. Cómo lee el feed la sala: una excepción acotada.** Decisión de la persona del 2026-11-20, al empezar SK2f. Gentle Shell niega toda la carpeta `<agentDir>/desktop/` a las tools del agente (`read`, `bash` y las demás), a propósito: un modelo manipulado podría dejar acciones en la bandeja con la autoridad de la persona. El feed está hecho para que lo lea otro programa (la app de escritorio Herdr), y la CLI `sala` es otro programa, pero la corre el modelo de la sala: la guarda no la ve. No hay una vía oficial para orquestadores (pedirla a Gentle Shell se descartó) y el canal entre agentes (`orchestrator_list`) no estaba disponible al medirlo. Por eso la persona aprueba esta excepción, con estos límites:
+  - **Quién entra:** solo el código del adaptador (`src/feed.js`). El modelo de la sala nunca lee ni escribe la carpeta con sus tools, ni la nombra en un comando.
+  - **Qué lee:** solo `sessions/*.json` y las respuestas de sus propias acciones en `outbox/`, y del snapshot solo los campos que el kit usa.
+  - **Qué escribe:** en `inbox/` solo `send_prompt` y `answer_question` de una opción. La lista es cerrada y la fija el código; una prueba reproduce el intento de mandar otra acción (`set_permission_mode`, `abort_turn`, `cancel_*`, `refresh_usage`, `apply_profile`) y comprueba que se niega sin escribir nada. Sumar una acción, por ejemplo `apply_profile` para D28, es otra decisión de la persona.
+  - **Lo que ya frena Gentle Shell:** un prompt de la bandeja llega como `extension` y nunca cuenta como palabra ni consentimiento de la persona; se niega con una pregunta abierta y para los comandos que solo corren en la terminal; los consentimientos no se contestan por la bandeja.
+  - **Riesgo que queda:** un modelo de la sala manipulado podría mandarle un prompt dañino a un miembro por `sala enviar`. Lo acotan la lista cerrada, las guardas de D13 y el OK de la persona antes de cada orden.
+  - **Cómo se deshace:** si Gentle Shell ofrece una lectura oficial, el adaptador la usa y esta excepción se borra. La alternativa sin excepción es el transporte RPC (SK7).

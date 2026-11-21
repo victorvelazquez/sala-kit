@@ -11,7 +11,8 @@ const { version } = require('../package.json');
 const HELP = `sala ${version}
 
 Uso:
-  sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo
+  sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo,
+                                             y su sesión viva de Gentle Shell: qué hace y si te necesita
   sala plan [--texto] [--sala <carpeta>]     por miembro: lo que está en curso, la siguiente tarea lista
                                              y lo que espera, con el motivo; y la cola de la sala
                                              en olas que pueden correr en paralelo

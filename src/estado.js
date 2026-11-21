@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { run, redact, firstLine, gitError } = require('./run');
+const { readFeed, feedRoots } = require('./feed');
 
 const OUTPUT_SCHEMA = 1;
 
@@ -125,7 +126,24 @@ async function memberStatus(member) {
 
 async function estado(config) {
   const members = await Promise.all(config.members.map(memberStatus));
-  return { schema: OUTPUT_SCHEMA, sala: config.name, members };
+  const feed = readFeed(feedRoots(), config.members);
+  for (const m of members) m.sessions = feed.sessions[m.id];
+  return { schema: OUTPUT_SCHEMA, sala: config.name, members, feed: { warnings: feed.warnings } };
+}
+
+const SESSION_STATE = {
+  'needs-you': 'te necesita',
+  working: 'trabajando',
+  waiting: 'esperando a sus agentes',
+  idle: 'libre',
+};
+
+function sessionLine(s) {
+  const facts = [];
+  if (s.context !== null) facts.push(`contexto ${Math.round(s.context)} %`);
+  if (s.cost !== null) facts.push(`costo ${s.cost.toFixed(2)}`);
+  const ask = s.question ? `: «${s.question.text}»` : '';
+  return `sesión ${s.id}: ${SESSION_STATE[s.state]}${ask}${facts.length ? ` (${facts.join(', ')})` : ''}`;
 }
 
 function estadoTexto(result) {
@@ -139,7 +157,9 @@ function estadoTexto(result) {
       lines.push(`${' '.repeat(width)}  PR #${pr.number} ${pr.title} [CI: ${pr.ci}${pr.draft ? ', borrador' : ''}]`);
     }
     if (m.prsError) lines.push(`${' '.repeat(width)}  PR: no se pudieron leer (${m.prsError})`);
+    for (const s of m.sessions || []) lines.push(`${' '.repeat(width)}  ${sessionLine(s)}`);
   }
+  for (const w of (result.feed && result.feed.warnings) || []) lines.push(`Feed: ${w}`);
   return `${lines.join('\n')}\n`;
 }
 
