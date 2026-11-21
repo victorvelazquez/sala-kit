@@ -43,6 +43,7 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-orden <miembro> <orden>` | Manda la orden tal cual con `sala enviar` y espera a que el miembro termine o te necesite |
 | `/sala-entregar <miembro>` | Le pide la entrega (`/flow-ship` hasta que exista `/miembro-entregar`), espera y muestra el veredicto |
 | `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente (`/flow-next` hasta que exista `/miembro-tarea`). No es `sala seguir`, que levanta una pausa |
+| `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
 
 ## `sala.json`
 
@@ -175,6 +176,25 @@ Después de mandar un comando, `sala veredicto` comprueba en JSON que haya dejad
 | `miembro-base` (y, de puente, `flow-base`) | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto |
 
 El comando va con o sin `/`, y lo que sigue al primer espacio no cuenta: `/flow-ship SK2d` es `flow-ship`. Como solo lee, también reconoce el comando cuando Git Bash lo convirtió en ruta (`C:/Program Files/Git/flow-ship`), sin hacer falta `MSYS_NO_PATHCONV=1`. Los nombres de las reglas (`entrega` y `base`) también sirven como comando. Los `/flow-*` son un puente: los miembros los usan hasta que la fase 5 los cambia por los `/miembro-*` (D26), y ahí se quitan. Cada comprobación sale con su `id`, si pasó y el motivo; `ok` es `true` solo si pasan todas. Después de una entrega, el JSON trae también la rama, el commit, el PR con su CI y el ID de la tarea.
+
+## `sala fusionar`
+
+```
+sala fusionar <miembro> <n> [--texto] [--sala <carpeta>]
+```
+
+Fusiona el PR #n del miembro y sigue con su tarea siguiente, en una sola cadena (D18). Que la persona nombre el PR es el OK (D19): la sala nunca fusiona por su cuenta. Los pasos, en orden:
+
+| Paso | Qué hace |
+|---|---|
+| `pr` | El PR está abierto, no es un borrador, va a la base del miembro, todos sus checks terminaron en verde (`SUCCESS`, `NEUTRAL` o `SKIPPED`; un resultado que el kit no conoce no cuenta como verde) o no tiene CI, y GitHub dice que se puede fusionar |
+| `session` | El miembro tiene una sola sesión viva que puede recibir órdenes, con las guardas de `sala enviar`. Sin ella no se fusiona: después no podría volver a la base |
+| `merge` | Fusiona con el primer método que el repo permite (squash, rebase o merge), y solo si la cabeza del PR sigue siendo el commit que se comprobó (`--match-head-commit`). Después comprueba que el PR figure `MERGED`: con una cola de fusión, `gh` puede terminar bien con el PR todavía abierto, y la cadena no sigue |
+| `base` | Le manda `/flow-base` a la sesión del miembro y espera a que termine (puente hasta `/miembro-base`) |
+| `gate` | La puerta: `sala veredicto <miembro> base` tiene que dar OK |
+| `next` | Le pide la tarea siguiente del plan de la sala, `/flow-next <ID>`, salvo que su fila diga `Auto: no` en `Notas`. Un ID que no tiene forma de ID no se manda: una fila es un dato, no una orden |
+
+Se detiene en el primer paso que falla y dice cuál (`stoppedAt`) y por qué; en ese caso sale con código 1. Antes de cada paso mira `.sala/PAUSA` y el tope de tiempo de la cadena (45 minutos). Cada paso deja una línea en `.sala/fusiones.log`, con los secretos enmascarados; si no se puede anotar, la cadena no sigue (y si el paso era la fusión, el error lo dice). gh corre sin shell y con los argumentos en una lista (D40).
 
 ## `sala plan`
 

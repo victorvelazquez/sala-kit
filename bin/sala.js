@@ -11,6 +11,7 @@ const { enviar, enviarTexto, esperar, esperarTexto } = require('../src/enviar');
 const { veredicto, veredictoTexto } = require('../src/veredicto');
 const { preguntas, preguntasTexto, responder, responderTexto } = require('../src/responder');
 const { init, initTexto, donde, dondeTexto } = require('../src/init');
+const { fusionar, fusionarTexto } = require('../src/fusionar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -60,6 +61,14 @@ Uso:
                                              miembro-entregar (o flow-ship, flow-pr), la rama, el commit
                                              subido, el PR, su CI y la fila Completada; después de
                                              miembro-base (o flow-base), la base limpia y al día
+  sala fusionar <miembro> <n> [--texto] [--sala <carpeta>]
+                                             fusiona el PR #n del miembro, solo si está abierto, en
+                                             verde y fusionable, con el método que el repo permite;
+                                             después le manda /flow-base, corre la puerta y le pide
+                                             la tarea siguiente (salvo Auto: no). Se detiene en el
+                                             primer paso que falla, mira .sala/PAUSA antes de cada
+                                             uno y los anota en .sala/fusiones.log; sale con 1 si
+                                             no terminó
 
 Opciones:
   --texto            salida para leer, en vez de JSON
@@ -84,6 +93,13 @@ const COMMANDS = {
   esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
   veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
   preguntas: { run: (config) => preguntas(config), texto: preguntasTexto },
+  fusionar: {
+    run: (config, opts) => fusionar(config, opts.sala, opts.member, opts.order),
+    texto: fusionarTexto,
+    member: 'required',
+    order: 'el número del PR',
+    failed: (result) => !result.ok,
+  },
   responder: {
     run: (config, opts) => responder(config, opts.sala, opts.member, opts.order, opts.pregunta),
     texto: responderTexto,
@@ -131,6 +147,7 @@ async function main() {
     if (command.order && opts.order === null) return fail(`sala ${opts.command} necesita ${command.order}`);
     const result = await (command.noConfig ? command.run(opts) : command.run(loadConfig(opts.sala), opts));
     process.stdout.write(opts.texto ? command.texto(result, opts) : `${JSON.stringify(result)}\n`);
+    if (command.failed && command.failed(result)) process.exitCode = 1;
   } catch (err) {
     if (err instanceof ConfigError) return fail(err.message, err.details);
     if (err instanceof SalaError) return fail(err.message);

@@ -95,4 +95,4 @@ function planTexto(result) {
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { plan, planTexto };
+module.exports = { plan, planTexto, readRoadmap };
