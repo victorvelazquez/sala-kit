@@ -76,7 +76,7 @@ Va en la carpeta de la sala. Se edita a mano:
 | `members[].base` | La rama base: letras, dígitos, `.`, `_`, `-` y `/`, sin empezar con `-` |
 | `members[].remote` | Opcional, `origin` por defecto. Es el nombre de un remoto del repo, nunca una URL (una URL puede llevar credenciales) |
 | `pinned` | Opcional: las tareas que la persona pone adelante en la cola, con el prefijo del miembro (`CORE-E09`), sin repetir y en orden de prioridad. Es intención de la persona, no estado |
-| `options` | Opcional: `language`, `jira` (`true` o `false`), `transport`, `launcher` (`auto`, el valor por defecto, `orca` o `wt`; ver `sala abrir`) y `roomModel` (el nombre de un perfil de `/gentle:profiles` o `null`; ver `sala modelo`) |
+| `options` | Opcional: `language` (`es` o `en`, el idioma de los PR), `jira` (`true` o `false`; ver «El motor de entrega»), `transport`, `launcher` (`auto`, el valor por defecto, `orca` o `wt`; ver `sala abrir`) y `roomModel` (el nombre de un perfil de `/gentle:profiles` o `null`; ver `sala modelo`) |
 
 Un campo desconocido es un error, para que una errata no pase callada.
 
@@ -321,7 +321,15 @@ Correrlo de nuevo no cambia nada. Los archivos se reemplazan con un renombre, pr
 
 - `engine/source.json` anota de dónde viene: el repo, el commit, la versión de flow-skills y el SHA-256 de cada archivo.
 - `test/engine.test.js` falla si un archivo de `engine/` cambió, falta o sobra, y corre las pruebas del propio motor.
-- **No se edita a mano.** Para traer una versión nueva, se vuelve a copiar entera y se regenera `source.json` en el mismo cambio. Las opciones de formato de D23 van aparte (SK5e), sin tocar la copia.
+- **No se edita a mano.** Para traer una versión nueva, se vuelve a copiar entera y se regenera `source.json` en el mismo cambio.
+
+El formato de commits y PR de D23 lo revisa el kit antes de llamar al motor, en `src/formato.js`, sin tocar la copia:
+
+- **El título del PR** se valida con la misma regla que el commit, la de `parseConventionalSubject` del motor: `tipo(ámbito)!: resultado`, con el ámbito opcional.
+- **El título termina con el ID de la tarea** entre paréntesis: `docs(guide): document theme H (M2c)`. Si se sabe la tarea, el ID tiene que ser el suyo.
+- **Pasar de 72 caracteres** es solo un aviso.
+- **Con `options.jira` en `true`**, el título tiene que llevar una clave de Jira (`ABC-123`). Apagado no se pide.
+- **`options.language`** (`en` por defecto, o `es`) elige el idioma de las secciones del PR: Summary, Changes, Validation, Risks y Out of scope, con «Not run» donde no se corrió una prueba.
 
 Todavía no lo usa ningún comando: `/miembro-entregar` llega en SK5b.
 
