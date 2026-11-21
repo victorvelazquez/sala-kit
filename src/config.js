@@ -8,6 +8,8 @@ const TOP_KEYS = ['schema', 'kit', 'name', 'members', 'pinned', 'options'];
 const MEMBER_KEYS = ['id', 'prefix', 'path', 'base', 'remote'];
 const OPTION_KEYS = ['language', 'jira', 'transport', 'launcher', 'roomModel'];
 const LAUNCHER_CHOICES = ['auto', 'orca', 'wt'];
+// The languages of the PR format (src/formato.js).
+const LANGUAGE_CHOICES = ['es', 'en'];
 const ID = /^[a-z0-9][a-z0-9-]*$/;
 const PREFIX = /^[A-Z][A-Z0-9]*$/;
 // A task of a member: its prefix, a dash and the row ID (CORE-E09).
@@ -76,7 +78,9 @@ function validateOptions(o, errors) {
     return;
   }
   unknownKeys(o, OPTION_KEYS, 'options.', errors);
-  if (o.language !== undefined && !isText(o.language)) errors.push('options.language: debe ser texto');
+  if (o.language !== undefined && !LANGUAGE_CHOICES.includes(o.language)) {
+    errors.push('options.language: debe ser es o en');
+  }
   if (o.jira !== undefined && typeof o.jira !== 'boolean') errors.push('options.jira: debe ser true o false');
   if (o.transport !== undefined && !isText(o.transport)) errors.push('options.transport: debe ser texto');
   if (o.launcher !== undefined && !LAUNCHER_CHOICES.includes(o.launcher)) {

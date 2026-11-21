@@ -130,6 +130,7 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
   - el **idioma** de los PR desde `options.language`;
   - las secciones del PR: Summary, Changes, Validation, Risks y Out of scope, con «Not run» en vez de pruebas inventadas;
   - **Jira con su interruptor** (`options.jira`): apagado en upen; en h2o se resuelve después.
+  - Hecho en SK5e: lo revisa una capa del kit, `src/formato.js`, antes de llamar al motor, sin editar `engine/`. Con Jira prendido, por ahora solo se pide una clave (`ABC-123`) en el título; si h2o necesita otra cosa, se cambia ahí.
 
 ## Adopción y requisitos
 
