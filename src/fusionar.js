@@ -23,9 +23,9 @@ const SHA = /^[0-9a-f]{40}$/;
 const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
 // `Auto: no`, also in bold (`**Auto:** no`).
 const AUTO_NO = /\bAuto:\**\s*no\b/i;
-// The /flow-* commands are a bridge until the member commands exist (SK5b).
-const BASE_ORDER = '/flow-base';
-const NEXT_ORDER = '/flow-next';
+// The member commands of the kit (D21), never /flow-*.
+const BASE_ORDER = '/miembro-base';
+const NEXT_ORDER = '/miembro-tarea';
 // The repo decides the method; squash first, like the sala's own repos.
 const METHODS = [['squashMergeAllowed', 'squash'], ['rebaseMergeAllowed', 'rebase'], ['mergeCommitAllowed', 'merge']];
 

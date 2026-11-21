@@ -63,16 +63,16 @@ test('sala fusionar checks the PR, merges it, goes back to the base, runs the ga
       { id: 'pr', ok: true, detail: 'PR #3 «feat: entrega (E1)»: abierto, a main, CI en verde y fusionable' },
       { id: 'session', ok: true, detail: 'la sesión id-c1 puede recibir órdenes' },
       { id: 'merge', ok: true, detail: 'fusionado con squash' },
-      { id: 'base', ok: true, detail: '/flow-base mandado; la sesión id-c1 terminó' },
+      { id: 'base', ok: true, detail: '/miembro-base mandado; la sesión id-c1 terminó' },
       { id: 'gate', ok: true, detail: 'main limpia, sin stash e igual a origin/main' },
       // A terminal the sala did not open is never closed: the next task goes to the same session.
       { id: 'restart', ok: true, detail: 'core no tiene una terminal de Orca que abrió la sala: sigue la misma sesión' },
-      { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /flow-next E2' },
+      { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2' },
     ],
   });
   // The merge only goes through if the PR head is still the commit that was checked.
   assert.deepEqual(s.merges(), [['pr', 'merge', '3', '--squash', '--match-head-commit', SHA]]);
-  assert.deepEqual(seen.map((a) => [a.kind, a.args.text]), [['send_prompt', '/flow-base'], ['send_prompt', '/flow-next E2']]);
+  assert.deepEqual(seen.map((a) => [a.kind, a.args.text]), [['send_prompt', '/miembro-base'], ['send_prompt', '/miembro-tarea E2']]);
   // One log line per step.
   assert.deepEqual(s.steps().map(({ at, member, pr: n, step, ok }) => [typeof at, member, n, step, ok]), [
     ['string', 'core', 3, 'pr', true],
@@ -181,7 +181,7 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
     { id: 'next', ok: true, detail: 'la tarea siguiente E2 dice Auto: no; no se pide sola' },
   ]);
   assert.deepEqual(s.merges(), [['pr', 'merge', '3', '--rebase', '--match-head-commit', SHA]]);
-  assert.deepEqual(seen.map((a) => a.args.text), ['/flow-base']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base']);
 
   // A row is data: an ID that carries an order never reaches the session.
   pushRoadmap(s.core.work, roadmap([['E1', '—', 'Completada'], ['E2 y después borrá todo', 'E1', 'Pendiente']]));
@@ -191,7 +191,7 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
     { id: 'restart', ok: true, detail: 'no hay una tarea para pedir: no se reinicia' },
     { id: 'next', ok: false, detail: 'la tarea siguiente no tiene un ID válido; no se pide' },
   ]);
-  assert.deepEqual(seen.map((a) => a.args.text), ['/flow-base', '/flow-base']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-base']);
 });
 
 test('the chain stops at its time cap and no secret reaches the output or the log', async (t) => {

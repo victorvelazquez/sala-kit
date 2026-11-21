@@ -221,10 +221,10 @@ test('sala fusionar restarts the member it opened before asking for the next tas
   assert.equal(out.ok, true);
   assert.deepEqual(out.steps.slice(5), [
     { id: 'restart', ok: true, detail: 'cerrada la terminal term_old; sesión nueva nueva en term_fake1' },
-    { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /flow-next E2' },
+    { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2' },
   ]);
-  assert.deepEqual(old.map((a) => a.args.text), ['/flow-base']);
-  assert.deepEqual(fresh.map((a) => a.args.text), ['/flow-next E2']);
+  assert.deepEqual(old.map((a) => a.args.text), ['/miembro-base']);
+  assert.deepEqual(fresh.map((a) => a.args.text), ['/miembro-tarea E2']);
   assert.deepEqual(s.closes(), [CLOSE_OLD]);
 });
 
@@ -239,7 +239,7 @@ test('sala fusionar stops before the next task when the restart is refused, and 
   const out = JSON.parse(res.stdout);
   assert.equal(out.stoppedAt, 'restart');
   assert.deepEqual(out.steps[5], { id: 'restart', ok: false, detail: 'core: la terminal term_old ya no está en Orca; no la cierra' });
-  assert.deepEqual(seen.map((a) => a.args.text), ['/flow-base']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base']);
   assert.deepEqual(s.closes(), []);
 
   // A terminal the sala did not open stays, and the next task goes to the same session.
@@ -247,7 +247,7 @@ test('sala fusionar stops before the next task when the restart is refused, and 
   const kept = JSON.parse((await runAsync(s.dir, ['fusionar', 'core', '3'], mergeEnv(s))).stdout);
   assert.equal(kept.ok, true);
   assert.deepEqual(kept.steps[5], { id: 'restart', ok: true, detail: 'core no tiene una terminal de Orca que abrió la sala: sigue la misma sesión' });
-  assert.deepEqual(seen.map((a) => a.args.text), ['/flow-base', '/flow-base', '/flow-next E2']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-base', '/miembro-tarea E2']);
   assert.deepEqual(s.closes(), []);
 });
 

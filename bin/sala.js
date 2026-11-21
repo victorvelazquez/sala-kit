@@ -87,7 +87,7 @@ Uso:
   sala fusionar <miembro> <n> [--texto] [--sala <carpeta>]
                                              fusiona el PR #n del miembro, solo si está abierto, en
                                              verde y fusionable, con el método que el repo permite;
-                                             después le manda /flow-base, corre la puerta y le pide
+                                             después le manda /miembro-base, corre la puerta y le pide
                                              la tarea siguiente (salvo Auto: no) en una sesión nueva,
                                              si la sala abrió su terminal de Orca. Se detiene en el
                                              primer paso que falla, mira .sala/PAUSA antes de cada
