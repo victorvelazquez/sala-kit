@@ -8,6 +8,12 @@ const { parseRoadmap } = require('./roadmap');
 const STATES = ['Pendiente', 'En curso', 'Completada', 'Bloqueada'];
 const HEADER = ['**Dónde está:**', '**Qué sigue:**', '**Qué lo bloquea:**'];
 const AGENTS_MAX_KB = 16;
+const MEMBER_START = '<!-- sala-kit:miembro:inicio -->';
+const MEMBER_END = '<!-- sala-kit:miembro:fin -->';
+// Blocks of older tools that a member may still carry: they warn, they never fail (D26).
+const OLD_BLOCKS = [
+  ['panel:entrega', 'tiene el bloque viejo panel:entrega de repo-panel; hasta la fase 5 el miembro sigue entregando con /flow-* (D26)'],
+];
 
 // Only the kind and the line are ever reported, never the matched text.
 const SECRETS = [
@@ -86,13 +92,32 @@ function agentsSize(text) {
     `Recortá AGENTS.md por debajo de ${AGENTS_MAX_KB} KB: pasá a docs/ lo que no es una regla para agentes.`);
 }
 
+function memberBlock(text) {
+  const ok = text !== null && text.includes(MEMBER_START) && text.includes(MEMBER_END);
+  return result('member-block', ok, `AGENTS.md ${ok ? 'tiene' : 'no tiene'} el bloque del miembro`,
+    'En una tarea propia, corré `sala unirse` en la raíz del repositorio. Si deja AGENTS.md.sugerido, mostráselo a la persona con las reglas de AGENTS.md que choquen con el bloque y, con su OK, pasá el bloque con sus marcas al final de AGENTS.md y borrá el .sugerido. Entregalo con su PR.');
+}
+
+function oldBlocks(text) {
+  return text === null ? [] : OLD_BLOCKS.filter(([mark]) => text.includes(mark)).map(([, warning]) => warning);
+}
+
 // files: { roadmap, agents } as text, or null when the file is missing.
 function memberRequirements(files, where) {
   return [
     ...roadmapChecks(files.roadmap, where),
     agentsSize(files.agents),
+    memberBlock(files.agents),
     noSecrets([['AGENTS.md', files.agents]]),
   ];
 }
 
-module.exports = { memberRequirements, noSecrets, mask, REQUIREMENT_IDS: ['base-remote', 'roadmap-table', 'roadmap-header', 'roadmap-states', 'agents-size', 'no-secrets'] };
+module.exports = {
+  memberRequirements,
+  oldBlocks,
+  noSecrets,
+  mask,
+  MEMBER_START,
+  MEMBER_END,
+  REQUIREMENT_IDS: ['base-remote', 'roadmap-table', 'roadmap-header', 'roadmap-states', 'agents-size', 'member-block', 'no-secrets'],
+};

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { run, gitError } = require('./run');
 const { ConfigError } = require('./config');
-const { memberRequirements, noSecrets, REQUIREMENT_IDS } = require('./requisitos');
+const { memberRequirements, oldBlocks, noSecrets, REQUIREMENT_IDS } = require('./requisitos');
 
 const OUTPUT_SCHEMA = 1;
 
@@ -38,14 +38,14 @@ async function readFile(dir, ref, file) {
 async function reviewMember(member) {
   const where = `${member.remote}/${member.base}`;
   const base = await baseRemote(member);
-  if (!base.ok) return { id: member.id, ok: false, requirements: [base.check, ...unchecked(`no se pudo leer ${where}`)] };
+  if (!base.ok) return { id: member.id, ok: false, requirements: [base.check, ...unchecked(`no se pudo leer ${where}`)], warnings: [] };
   const ref = `refs/remotes/${where}`;
   const [roadmap, agents] = await Promise.all([
     readFile(member.path, ref, 'docs/ROADMAP.md'),
     readFile(member.path, ref, 'AGENTS.md'),
   ]);
   const requirements = [base.check, ...memberRequirements({ roadmap, agents }, where)];
-  return { id: member.id, ok: requirements.every((r) => r.ok === true), requirements };
+  return { id: member.id, ok: requirements.every((r) => r.ok === true), requirements, warnings: oldBlocks(agents) };
 }
 
 async function revisar(config, salaDir, only) {
@@ -64,20 +64,21 @@ async function revisar(config, salaDir, only) {
   };
 }
 
-function block(lines, label, requirements) {
+function block(lines, label, requirements, warnings = []) {
   const passed = requirements.filter((r) => r.ok === true).length;
   lines.push(`${label}: cumple ${passed}/${requirements.length}`);
   for (const r of requirements.filter((x) => x.ok !== true)) {
     lines.push(`  ${r.id}: ${r.detail}`);
     if (r.fix) lines.push(`    orden: ${r.fix}`);
   }
+  for (const w of warnings) lines.push(`  aviso: ${w}`);
 }
 
 function revisarTexto(result) {
   const lines = [`Sala ${result.sala}`];
   block(lines, 'sala.json', result.salaJson.requirements);
-  for (const m of result.members) block(lines, m.id, m.requirements);
+  for (const m of result.members) block(lines, m.id, m.requirements, m.warnings);
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { revisar, revisarTexto };
+module.exports = { revisar, revisarTexto, reviewMember };

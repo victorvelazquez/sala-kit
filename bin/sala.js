@@ -13,6 +13,7 @@ const { preguntas, preguntasTexto, responder, responderTexto } = require('../src
 const { init, initTexto, donde, dondeTexto } = require('../src/init');
 const { fusionar, fusionarTexto } = require('../src/fusionar');
 const { reiniciar, reiniciarTexto, modelo, modeloTexto } = require('../src/reiniciar');
+const { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condiciones, condicionesTexto } = require('../src/adoptar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -33,7 +34,21 @@ Uso:
                                              en olas que pueden correr en paralelo
   sala revisar [miembro] [--texto] [--sala <carpeta>]
                                              qué requisitos cumple cada miembro y, para los que
-                                             faltan, la orden para cumplirlos
+                                             faltan, la orden para cumplirlos; y sus avisos
+  sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>]
+               [--texto] [--sala <carpeta>]
+                                             suma el repositorio a sala.json; deduce el id y el prefijo
+                                             del nombre de la carpeta, el remoto (origin) y la base
+                                             (la rama por defecto del remoto); nunca escribe en él
+  sala soltar <miembro> [--texto] [--sala <carpeta>]
+                                             saca al miembro de sala.json, con sus tareas de pinned,
+                                             sin tocar su repositorio
+  sala condiciones <miembro> [--texto] [--sala <carpeta>]
+                                             le manda al miembro, con las guardas de sala enviar, la
+                                             orden de cumplir los requisitos que le faltan
+  sala unirse [--texto] [--sala <carpeta>]   en un miembro: pone el bloque del miembro en su AGENTS.md;
+                                             nunca pisa: si tiene reglas propias sin las marcas, lo
+                                             deja en AGENTS.md.sugerido
   sala abrir <miembro> [--texto] [--sala <carpeta>]
                                              reusa la sesión viva del miembro o abre una nueva en Orca
                                              o en Windows Terminal (options.launcher), espera a que
@@ -84,6 +99,8 @@ Opciones:
   --texto            salida para leer, en vez de JSON
   --retomar          con estado: el resumen corto, sin git
   --pregunta <id>    con responder: el id de la pregunta que mostró sala preguntas
+  --id, --prefijo, --base, --remoto
+                     con adoptar: el dato del miembro, en vez de deducirlo
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
   --version          la versión del kit
 `;
@@ -91,6 +108,10 @@ Opciones:
 const COMMANDS = {
   init: { run: (opts) => init(opts.sala), texto: initTexto, noConfig: true },
   donde: { run: (opts) => donde(opts.sala), texto: dondeTexto, noConfig: true },
+  unirse: { run: (opts) => unirse(opts.sala), texto: unirseTexto, noConfig: true },
+  adoptar: { run: (config, opts) => adoptar(config, opts.sala, opts.member, opts.adopt), texto: adoptarTexto, member: 'required', memberLabel: 'una carpeta' },
+  soltar: { run: (config, opts) => soltar(config, opts.sala, opts.member), texto: soltarTexto, member: 'required' },
+  condiciones: { run: (config, opts) => condiciones(config, opts.sala, opts.member), texto: condicionesTexto, member: 'required' },
   estado: {
     run: (config, opts) => (opts.retomar ? retomar(config, opts.sala) : estado(config)),
     texto: (result, opts) => (opts.retomar ? retomarTexto(result) : estadoTexto(result)),
@@ -125,11 +146,19 @@ function fail(error, details) {
   process.exitCode = 1;
 }
 
+// The data of a member that sala adoptar takes instead of deducing it.
+const ADOPT_FLAGS = { '--id': 'id', '--prefijo': 'prefijo', '--base': 'base', '--remoto': 'remoto' };
+
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, pregunta: null, texto: false, retomar: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, adopt: {}, texto: false, retomar: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
+    else if (opts.command === 'adoptar' && Object.hasOwn(ADOPT_FLAGS, arg)) {
+      if (!argv[i + 1]) throw new ConfigError(`${arg} necesita un valor`);
+      if (Object.hasOwn(opts.adopt, ADOPT_FLAGS[arg])) throw new ConfigError(`${arg} va una sola vez`);
+      opts.adopt[ADOPT_FLAGS[arg]] = argv[(i += 1)];
+    }
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
     else if (arg === '--pregunta' && opts.command === 'responder') {
       if (!argv[i + 1]) throw new ConfigError('--pregunta necesita el id de la pregunta');
@@ -155,7 +184,7 @@ async function main() {
     if (!opts.command || opts.command === '--help' || opts.command === '-h') return void process.stdout.write(HELP);
     const command = COMMANDS[opts.command];
     if (!command) return fail(`subcomando desconocido: ${opts.command}`);
-    if (command.member === 'required' && !opts.member) return fail(`sala ${opts.command} necesita un miembro`);
+    if (command.member === 'required' && !opts.member) return fail(`sala ${opts.command} necesita ${command.memberLabel || 'un miembro'}`);
     if (command.order && opts.order === null) return fail(`sala ${opts.command} necesita ${command.order}`);
     const result = await (command.noConfig ? command.run(opts) : command.run(loadConfig(opts.sala), opts));
     process.stdout.write(opts.texto ? command.texto(result, opts) : `${JSON.stringify(result)}\n`);

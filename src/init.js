@@ -3,17 +3,17 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadConfig, validateConfig, ConfigError } = require('./config');
+const { MEMBER_START } = require('./requisitos');
 const { version } = require('../package.json');
 
-const TEMPLATES = path.join(__dirname, '..', 'templates', 'sala');
+const TEMPLATES = path.join(__dirname, '..', 'templates');
 const SALA_START = '<!-- sala-kit:sala:inicio -->';
 const SALA_END = '<!-- sala-kit:sala:fin -->';
-const MEMBER_START = '<!-- sala-kit:miembro:inicio -->';
 const IGNORED = '.sala/';
 
 // A template without its leading HTML comment, which is a note for whoever edits the kit.
-function template(name) {
-  const text = fs.readFileSync(path.join(TEMPLATES, name), 'utf8');
+function template(name, family = 'sala') {
+  const text = fs.readFileSync(path.join(TEMPLATES, family, name), 'utf8');
   return text.replace(/^<!--[\s\S]*?-->\r?\n/, '');
 }
 
@@ -127,4 +127,4 @@ function dondeTexto(r) {
   return `Ni sala ni miembro: ${r.dir}\n`;
 }
 
-module.exports = { init, initTexto, donde, dondeTexto };
+module.exports = { init, initTexto, donde, dondeTexto, template, readText, create };
