@@ -183,4 +183,4 @@ function retomarTexto(result) {
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaError };
+module.exports = { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, findMember, SalaError };

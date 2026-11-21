@@ -178,7 +178,7 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
 
 | Qué | Por qué importa | Dónde se comprueba |
 |---|---|---|
-| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question`. En SK2a no se pudo medir porque la política de seguridad bloquea la carpeta del feed a las tools del agente; se mide con la CLI, según D50. SK2f ya lee el feed real con la CLI; falta mandar una acción | D13, D17, D46 y D50 | SK2c |
+| Que una acción real por la bandeja funcione en una sesión de Orca: `send_prompt` y `answer_question`. En SK2a no se pudo medir porque la política de seguridad bloquea la carpeta del feed a las tools del agente; se mide con la CLI, según D50. SK2f ya lee el feed real con la CLI; SK2c programa `sala enviar` con una bandeja falsa, y falta mandar una acción real. También falta saber si Gentle Shell escribe el snapshot de una vez (`sala esperar` tolera lecturas a medias) | D13, D15, D17, D46 y D50 | Primer `sala enviar` real, con el OK de la persona |
 | Que `wt -w 0 new-tab` abra una pestaña en la ventana abierta. En SK2a abrió una ventana nueva; SK2b lo programó con lanzadores falsos, sin medirlo | D14 | Primer uso real de `sala abrir` con `wt`, con la persona |
 | Que `sala abrir` con el Orca real deje Gentle Shell listo en el proyecto del miembro y lo reuse al correrlo de nuevo. SK2b lo probó con un `orca` falso | D14 | Antes de SK2c, con el OK de la persona |
 | Por qué falla el `git fetch` dentro de `estado-vivo.sh` | Que `sala estado` no repita el error | SK1a |
