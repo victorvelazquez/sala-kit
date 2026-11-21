@@ -103,6 +103,26 @@ Si la sesión no aparece a tiempo, `sala abrir` termina con error pero el handle
 
 `sala mostrar` lleva la terminal de Orca que abrió la sala al frente (`orca terminal switch`), después de comprobar con `orca terminal list` que sigue abierta. En Windows Terminal no se puede elegir una pestaña desde afuera: dice su título. Cerrar sesiones llega en SK3c.
 
+## `sala enviar` y `sala esperar`
+
+```
+sala enviar <miembro> <orden> [--texto] [--sala <carpeta>]
+sala esperar <miembro> [--texto] [--sala <carpeta>]
+```
+
+`sala enviar` deja la orden (por ejemplo `/flow-avance`) en la bandeja de la sesión del miembro, como `send_prompt`, y espera hasta 10 s a que Gentle Shell la acepte. Antes de escribir nada comprueba las guardas del kit (D13):
+
+- la sala no está en pausa: si existe `.sala/PAUSA`, no manda nada (los comandos para pausar y seguir llegan con SK2e, D38);
+- el miembro está en `sala.json` y tiene **una sola** sesión viva, que es suya (con dos, se niega y dice sus IDs);
+- esa sesión no tiene una pregunta abierta ni está bloqueada;
+- la orden se puede leer: no está vacía (tampoco hecha solo de caracteres invisibles), no pasa de 4000 caracteres y no tiene caracteres de control ni de dirección (D39). Tampoco puede empezar con `-`.
+
+Gentle Shell suma sus propias guardas: niega los comandos que solo corren en la terminal (`/new`, `/quit`, `/gentle:*`, las líneas `!`), y su respuesta sale en el error. Un mensaje de la sala nunca cuenta como consentimiento de la persona. Cada orden queda en `.sala/ordenes.log`, una línea JSON con la hora, el miembro, la sesión, la orden (con cualquier secreto enmascarado) y el resultado: `refused` si la negó una guarda del kit; `sending` antes de dejarla en la bandeja y, después, `sent` o el código con que la negó Gentle Shell. Si la línea `sending` no se puede escribir, la orden no se manda.
+
+Git Bash convierte `/flow-avance` en una ruta (`C:/Program Files/Git/flow-avance`) antes de que la CLI la vea. `sala enviar` reconoce esa ruta y se niega; desde Git Bash, corré `MSYS_NO_PATHCONV=1 sala enviar core /flow-avance`.
+
+`sala esperar` vigila el estado de la sesión en el feed y termina cuando el miembro termina **de verdad**: `idle` durante 3 s seguidos, para no confundir el momento antes de que arranque una orden recién mandada. Mientras dice `waiting` (le quedan subagentes o trabajos) sigue esperando (D15). Termina enseguida, con `state: "needs-you"` y la pregunta, si el miembro te necesita. Falla si la sesión se cierra o si pasan 30 minutos. Está pensada para que la sala la corra como trabajo en segundo plano y duerma sin gastar tokens hasta que termine.
+
 ## `sala plan`
 
 ```

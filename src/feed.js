@@ -204,8 +204,12 @@ async function sendAction(target, kind, args, { timeoutMs = 10000 } = {}) {
   const actionFile = path.join(inbox, `${id}.json`);
   const action = { schema: ACTION_SCHEMA, id, sessionId: target.sessionId, kind, args, createdAt: new Date().toISOString() };
   try {
-    const stat = fs.lstatSync(inbox, { throwIfNoEntry: false });
-    if (!stat || !stat.isDirectory()) return refuse('no_inbox', 'la sesión no tiene bandeja');
+    // Every folder on the way is a plain folder: a link would carry the write elsewhere.
+    const plain = [desktop, path.dirname(inbox), inbox].every((d) => {
+      const stat = fs.lstatSync(d, { throwIfNoEntry: false });
+      return stat && stat.isDirectory();
+    });
+    if (!plain) return refuse('no_inbox', 'la sesión no tiene bandeja');
     fs.writeFileSync(actionFile, JSON.stringify(action), { flag: 'wx', mode: 0o600 });
   } catch (err) {
     return refuse('write_failed', `no se pudo dejar la acción en la bandeja (${err.code || 'error'})`);
