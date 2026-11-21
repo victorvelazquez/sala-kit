@@ -67,7 +67,7 @@ Va en la carpeta de la sala. Se edita a mano:
 | Campo | Regla |
 |---|---|
 | `schema` | `1` |
-| `kit` | La versión del kit con la que se escribió |
+| `kit` | La versión del kit con la que se escribió. `sala actualizar` la pone al día |
 | `name` | El nombre de la sala |
 | `members` | La lista de miembros. Puede estar vacía: así la deja `sala init` |
 | `members[].id` | Minúsculas, dígitos y guiones, sin repetir. Es como se nombra al miembro en todos los comandos |
@@ -298,6 +298,22 @@ sala unirse [--texto] [--sala <carpeta>]
   - si `AGENTS.md` no existe, lo crea con el bloque;
   - si ya tiene el bloque, no lo toca;
   - si tiene reglas propias sin las marcas, deja el bloque en `AGENTS.md.sugerido` (D41).
+
+## `sala actualizar`
+
+`sala actualizar [--texto] [--sala <carpeta>]` lleva una sala a la versión instalada del kit (D27). Correlo después de mejorar el kit (`git pull` en sala-kit):
+
+1. **Migra `sala.json`**: aplica las migraciones de su formato, si cambió el `schema`, y anota en `kit` la versión instalada. Una sala sin `kit` se toma como una sala vieja y se migra.
+2. **Reescribe el bloque de la sala** en su `AGENTS.md`: solo el texto entre `<!-- sala-kit:sala:inicio -->` y `<!-- sala-kit:sala:fin -->`. Lo de afuera queda igual, byte por byte. Si `AGENTS.md` no tiene las marcas, queda igual, y el bloque nuevo va a `AGENTS.md.sugerido` (si ese archivo ya existe, no se pisa).
+3. **Vuelve a revisar a los miembros**, como `sala revisar`, y por cada uno que no cumple propone la orden `sala condiciones <miembro>`. **No la manda:** la corrés vos, o la sala con tu OK.
+
+Antes de escribir, lee y decide todo. **No escribe nada** si:
+- `sala.json` no es JSON válido o no valida después de migrar;
+- es de un kit más nuevo que el instalado (`kit` mayor o `schema` mayor);
+- `kit` no es una versión (`1.2.3`): podría ser de un kit más nuevo;
+- las marcas del bloque están rotas (una sola, repetidas o al revés).
+
+Correrlo de nuevo no cambia nada. Los archivos se reemplazan con un renombre, primero `AGENTS.md` y después `sala.json`: si el primero falla, no cambia nada; si falla el segundo, el error lo dice y otra corrida lo termina. Los cambios de cada versión están en [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Documentos
 

@@ -14,6 +14,7 @@ const { init, initTexto, donde, dondeTexto } = require('../src/init');
 const { fusionar, fusionarTexto } = require('../src/fusionar');
 const { reiniciar, reiniciarTexto, modelo, modeloTexto } = require('../src/reiniciar');
 const { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condiciones, condicionesTexto } = require('../src/adoptar');
+const { actualizar, actualizarTexto } = require('../src/actualizar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -22,6 +23,11 @@ Uso:
   sala init [--texto] [--sala <carpeta>]     crea una sala nueva: sala.json sin miembros, el AGENTS.md con
                                              el bloque de la sala y .sala/ en .gitignore; nunca pisa,
                                              dice qué hizo y qué salteó
+  sala actualizar [--texto] [--sala <carpeta>]
+                                             lleva la sala a la versión instalada del kit: migra
+                                             sala.json, reescribe solo el bloque de la sala en su
+                                             AGENTS.md y vuelve a revisar a los miembros; propone la
+                                             orden de ponerse en condiciones, sin mandarla
   sala donde [--texto] [--sala <carpeta>]    dice si la carpeta es una sala, un miembro o ninguna:
                                              la guarda de los comandos /sala-*
   sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo,
@@ -108,6 +114,8 @@ Opciones:
 const COMMANDS = {
   init: { run: (opts) => init(opts.sala), texto: initTexto, noConfig: true },
   donde: { run: (opts) => donde(opts.sala), texto: dondeTexto, noConfig: true },
+  // It reads sala.json by itself: an old one may not pass loadConfig until it is migrated.
+  actualizar: { run: (opts) => actualizar(opts.sala), texto: actualizarTexto, noConfig: true },
   unirse: { run: (opts) => unirse(opts.sala), texto: unirseTexto, noConfig: true },
   adoptar: { run: (config, opts) => adoptar(config, opts.sala, opts.member, opts.adopt), texto: adoptarTexto, member: 'required', memberLabel: 'una carpeta' },
   soltar: { run: (config, opts) => soltar(config, opts.sala, opts.member), texto: soltarTexto, member: 'required' },
