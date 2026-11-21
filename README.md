@@ -65,10 +65,16 @@ Por cada miembro, en paralelo: la rama, el árbol, el stash, si la base local es
 ```
 Sala upen
 core   LISTO     develop
+       sesión 01a1fb69: te necesita: «¿Seguimos con E09?» (contexto 13 %, costo 1.53)
 brand  NO LISTO  feat: está en la rama feat, no en la base develop
+       sesión 7c2e: esperando a sus agentes (contexto 40 %, costo 0.82)
 ```
 
 Un miembro que falla (la carpeta no existe, el `fetch` no llega, `gh` no tiene sesión) no frena a los demás: queda como motivo. Git y `gh` corren sin shell y sin pedir credenciales, y las credenciales de una URL o un token nunca salen en la salida.
+
+**La sesión viva de cada miembro** sale del feed de Gentle Shell (`gentle-shell.desktop-feed/v1`), sin leer ninguna pantalla y sin tokens. Se leen los snapshots de `~/.gentle-shell/agent` y `~/.pi/agent`; una sesión es de un miembro cuando su carpeta está dentro de su `path`, y cuenta mientras su proceso corre. En el JSON, cada miembro trae `sessions` (`id`, `mode`, `state`, `label`, `question`, `context` en %, `cost`), y `feed.warnings` dice qué snapshots no se pudieron leer (por ejemplo, un formato que no es la versión 1). `state` es `needs-you` (hay una pregunta abierta o algo la bloquea), `working`, `waiting` (terminó su turno pero quedan subagentes o trabajos) o `idle`. Un secreto en el texto de una pregunta sale solo con su tipo.
+
+Esa carpeta la lee solo el código del kit (D50 en [`docs/DISENO.md`](docs/DISENO.md)): Gentle Shell se la niega a las tools del agente. En la bandeja de una sesión, el kit deja únicamente `send_prompt` y `answer_question` de una opción; cualquier otra acción se niega sin escribir nada.
 
 ## `sala plan`
 

@@ -67,12 +67,13 @@ function salaConfig(members) {
 
 const FAKE_GH = path.join(__dirname, 'fixtures', 'fake-gh.js');
 
-// The tests never call the real gh: by default it answers with no open PRs.
+// The tests never call the real gh nor read the real feed: by default gh answers
+// with no open PRs and the feed is a folder that does not exist.
 function runSala(cwd, args, env = {}) {
   const res = spawnSync(process.execPath, [BIN, ...args], {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, SALA_GH: FAKE_GH, FAKE_GH_OUT: '[]', ...env },
+    env: { ...process.env, SALA_GH: FAKE_GH, FAKE_GH_OUT: '[]', SALA_FEED_ROOTS: path.join(cwd, 'sin-feed'), ...env },
   });
   return { code: res.status, stdout: res.stdout, stderr: res.stderr };
 }

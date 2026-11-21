@@ -95,4 +95,4 @@ function memberRequirements(files, where) {
   ];
 }
 
-module.exports = { memberRequirements, noSecrets, REQUIREMENT_IDS: ['base-remote', 'roadmap-table', 'roadmap-header', 'roadmap-states', 'agents-size', 'no-secrets'] };
+module.exports = { memberRequirements, noSecrets, mask, REQUIREMENT_IDS: ['base-remote', 'roadmap-table', 'roadmap-header', 'roadmap-states', 'agents-size', 'no-secrets'] };
