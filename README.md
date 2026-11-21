@@ -44,6 +44,8 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-entregar <miembro>` | Le pide la entrega (`/flow-ship` hasta que exista `/miembro-entregar`), espera y muestra el veredicto |
 | `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente (`/flow-next` hasta que exista `/miembro-tarea`). No es `sala seguir`, que levanta una pausa |
 | `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
+| `/sala-adoptar [carpetas]` | Adopta las carpetas con `sala adoptar`, las revisa y, con tu OK por miembro, le manda la orden de ponerse en condiciones (`sala condiciones`) |
+| `/sala-soltar <miembro>` | Con tu OK, saca al miembro de la sala con `sala soltar`; su repositorio queda igual |
 
 ## `sala.json`
 
@@ -267,9 +269,35 @@ Revisa el catálogo de requisitos en cada miembro, o solo en `miembro` (su `id`)
 | `roadmap-header` | Las tres líneas de cabecera: `**Dónde está:**`, `**Qué sigue:**` y `**Qué lo bloquea:**` |
 | `roadmap-states` | Cada `Estado` es `Pendiente`, `En curso`, `Completada` o `Bloqueada` |
 | `agents-size` | `AGENTS.md` existe y pesa 16 KB o menos |
+| `member-block` | `AGENTS.md` tiene el bloque del miembro, entre `<!-- sala-kit:miembro:inicio -->` y `<!-- sala-kit:miembro:fin -->` |
 | `no-secrets` | `AGENTS.md` sin secretos; también se revisa el `sala.json` de la sala, en `salaJson` |
 
 Un secreto (token de GitHub, clave `sk-`, clave de AWS, clave privada o URL con usuario y clave) se informa con su tipo, el archivo y la línea; **nunca** se muestra el texto encontrado. Un `miembro` que no está en `sala.json` es un error.
+
+Cada miembro trae también `warnings`: avisos que no hacen fallar, como el bloque viejo `panel:entrega` de repo-panel, que sigue hasta la fase 5 (D26).
+
+## Adoptar y soltar miembros
+
+```
+sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>] [--texto] [--sala <carpeta>]
+sala soltar <miembro> [--texto] [--sala <carpeta>]
+sala condiciones <miembro> [--texto] [--sala <carpeta>]
+sala unirse [--texto] [--sala <carpeta>]
+```
+
+- `sala adoptar` suma el repositorio a `members` de `sala.json`. Deduce cada dato que no le pasás:
+  - el `id`, del nombre de la carpeta en minúsculas;
+  - el `prefix`, del `id` en mayúsculas, sin guiones;
+  - el `remote`, `origin`;
+  - la `base`, de la rama por defecto del remoto (`origin/HEAD`, la que deja `git clone`).
+
+  Se niega con una carpeta que no existe, que no es la raíz de un repositorio, que es una sala o que ya es miembro. También se niega si no puede deducir un dato o si el resultado no valida. En todos esos casos, `sala.json` queda como estaba. **Nunca escribe en el miembro:** solo avisa si le falta el bloque del miembro o si tiene `panel:entrega`.
+- `sala soltar` saca al miembro de `sala.json`, junto con sus tareas de `pinned`, sin tocar su repositorio.
+- `sala condiciones` revisa al miembro y le manda por `sala enviar`, con sus guardas y su registro, la orden de cumplir lo que falta: un requisito por línea con su orden. Si la base o el remoto fallan, no manda nada, porque eso se corrige en `sala.json`. Si cumple todo, tampoco.
+- `sala unirse` corre **en el miembro**, en una tarea propia: pone el bloque del miembro (`templates/miembro/bloque.md`) en su `AGENTS.md`. Nunca pisa:
+  - si `AGENTS.md` no existe, lo crea con el bloque;
+  - si ya tiene el bloque, no lo toca;
+  - si tiene reglas propias sin las marcas, deja el bloque en `AGENTS.md.sugerido` (D41).
 
 ## Documentos
 
