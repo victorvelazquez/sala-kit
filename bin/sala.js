@@ -19,6 +19,7 @@ const { pausar, pausarTexto, seguir, seguirTexto, parseMinutes } = require('../s
 const { motor, MotorError } = require('../src/motor');
 const { hospedar, hospedarTexto } = require('../src/hospedar');
 const { consentir, consentirTexto } = require('../src/consentir');
+const { instalar, instalarTexto } = require('../src/instalar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -32,6 +33,10 @@ Uso:
                                              sala.json, reescribe solo el bloque de la sala en su
                                              AGENTS.md y vuelve a revisar a los miembros; propone la
                                              orden de ponerse en condiciones, sin mandarla
+  sala instalar [--forzar] [--texto]         copia los agentes del kit (miembro-entrega) a
+                                             ~/.gentle-shell/agent/agents con su versión; pone al día
+                                             una copia vieja, pero nunca pisa una editada o ajena
+                                             sin --forzar; sale con 1 si dejó alguna sin tocar
   sala donde [--texto] [--sala <carpeta>]    dice si la carpeta es una sala, un miembro o ninguna:
                                              la guarda de los comandos /sala-*
   sala estado [--texto] [--sala <carpeta>]   la foto de cada miembro y su puerta, con el motivo,
@@ -44,7 +49,8 @@ Uso:
                                              en olas que pueden correr en paralelo
   sala revisar [miembro] [--texto] [--sala <carpeta>]
                                              qué requisitos cumple cada miembro y, para los que
-                                             faltan, la orden para cumplirlos; y sus avisos
+                                             faltan, la orden para cumplirlos; y sus avisos, con
+                                             los agentes del kit que faltan o quedaron viejos
   sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>]
                [--texto] [--sala <carpeta>]
                                              suma el repositorio a sala.json; deduce el id y el prefijo
@@ -135,6 +141,7 @@ Opciones:
   --texto            salida para leer, en vez de JSON
   --retomar          con estado: el resumen corto, sin git
   --pregunta <id>    con responder: el id de la pregunta que mostró sala preguntas
+  --forzar           con instalar: reemplaza también la copia editada o ajena
   --minutos <n>      con pausar: la pausa vence sola a los n minutos (hasta 1440)
   --id, --prefijo, --base, --remoto
                      con adoptar: el dato del miembro, en vez de deducirlo
@@ -145,6 +152,7 @@ Opciones:
 const COMMANDS = {
   init: { run: (opts) => init(opts.sala), texto: initTexto, noConfig: true },
   donde: { run: (opts) => donde(opts.sala), texto: dondeTexto, noConfig: true },
+  instalar: { run: (opts) => instalar({ forzar: opts.forzar }), texto: instalarTexto, noConfig: true, failed: (result) => !result.ok },
   // It reads sala.json by itself: an old one may not pass loadConfig until it is migrated.
   actualizar: { run: (opts) => actualizar(opts.sala), texto: actualizarTexto, noConfig: true },
   unirse: { run: (opts) => unirse(opts.sala), texto: unirseTexto, noConfig: true },
@@ -197,7 +205,7 @@ function fail(error, details) {
 const ADOPT_FLAGS = { '--id': 'id', '--prefijo': 'prefijo', '--base': 'base', '--remoto': 'remoto' };
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, adopt: {}, texto: false, retomar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, adopt: {}, texto: false, retomar: false, forzar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
@@ -207,6 +215,7 @@ function parseArgs(argv) {
       opts.adopt[ADOPT_FLAGS[arg]] = argv[(i += 1)];
     }
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
+    else if (arg === '--forzar' && opts.command === 'instalar') opts.forzar = true;
     else if (arg === '--cerrar' && opts.command === 'hospedar') opts.cerrar = true;
     else if (arg === '--primer-plano' && opts.command === 'hospedar') opts.primerPlano = true;
     else if (arg === '--pregunta' && opts.command === 'responder') {

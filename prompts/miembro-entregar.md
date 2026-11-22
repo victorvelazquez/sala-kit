@@ -15,6 +15,8 @@ Reglas para todo el comando:
 - Los handles, los tokens y las rutas temporales del motor son internos: no los muestres.
 - Si un paso del motor falla, mostrá su error tal cual, decí en qué etapa quedó y detenete. **No reintentes**, salvo la única corrección de título que dice el paso 6.
 
+**Delegación.** Si sos el agente `miembro-entrega`, salteá este párrafo. Si no, y entre tus subagentes está `miembro-entrega` (lo instala `sala instalar`), delegale la entrega entera con `subagent_run` (agente `miembro-entrega`, con el ID si vino y la carpeta actual), mostrá su resultado tal cual y terminá con la línea del paso 9; no corras vos los pasos. Si no está, seguí vos desde el paso 1 y, al final, avisá que con `sala instalar` la entrega corre en su propio agente, con el modelo que elija la persona.
+
 1. **Guarda.** Corré `sala donde`. Si `kind` no es `miembro`, decí «/miembro-entregar solo corre en un miembro de una sala» y detenete.
 2. **La tarea.** Si no vino el ID, tomá la fila de `docs/ROADMAP.md` que este trabajo cierra (la que pasa a `Completada` en el diff, o la única `En curso`). Si no queda claro, preguntalo con `ask_user_choice` y esperá.
 3. **Estado.** Mirá `git status --porcelain`, `git diff --cached --name-only` y la rama actual. Si hay archivos en el índice, detenete: el motor no arranca con el índice ocupado. Si el árbol está limpio y la rama es la base, no hay nada que entregar: decilo y detenete. Si está limpio y la rama no es la base, el commit ya está hecho: pasá al paso 5. Anotá el `HEAD`.
