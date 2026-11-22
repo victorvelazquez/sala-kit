@@ -153,7 +153,8 @@ Opciones:
   --id, --prefijo, --base, --remoto
                      con adoptar: el dato del miembro, en vez de deducirlo
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
-  --version          la versión del kit
+  --help, -h         esta ayuda, en cualquier lugar de los argumentos: no corre el comando
+  --version          la versión del kit, en cualquier lugar: no corre el comando
 `;
 
 const COMMANDS = {
@@ -239,8 +240,7 @@ function parseArgs(argv) {
     } else if (arg === '--sala') {
       if (!argv[i + 1]) throw new ConfigError('--sala necesita una carpeta');
       opts.sala = path.resolve(argv[(i += 1)]);
-    } else if (arg === '--version' || arg === '--help' || arg === '-h') opts.command = opts.command || arg;
-    else if (!opts.command && !arg.startsWith('-')) opts.command = arg;
+    } else if (!opts.command && !arg.startsWith('-')) opts.command = arg;
     else if (COMMANDS[opts.command]?.member && !opts.member && !arg.startsWith('-')) opts.member = arg;
     else if (COMMANDS[opts.command]?.order && opts.member && opts.order === null && !arg.startsWith('-')) opts.order = arg;
     // D48: the consent is typed by the person, and an argument is what the sala's model could
@@ -263,10 +263,13 @@ async function main() {
     }
     return;
   }
+  // Asking for help or the version, anywhere in the arguments, never runs a command (SK13).
+  const argv = process.argv.slice(2);
+  if (argv.some((arg) => arg === '--help' || arg === '-h')) return void process.stdout.write(HELP);
+  if (argv.includes('--version')) return void process.stdout.write(`${version}\n`);
   try {
-    opts = parseArgs(process.argv.slice(2));
-    if (opts.command === '--version') return void process.stdout.write(`${version}\n`);
-    if (!opts.command || opts.command === '--help' || opts.command === '-h') return void process.stdout.write(HELP);
+    opts = parseArgs(argv);
+    if (!opts.command) return void process.stdout.write(HELP);
     const command = COMMANDS[opts.command];
     if (!command) return fail(`subcomando desconocido: ${opts.command}`);
     if (command.member === 'required' && !opts.member) return fail(`sala ${opts.command} necesita ${command.memberLabel || 'un miembro'}`);

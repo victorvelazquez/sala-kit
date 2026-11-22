@@ -22,6 +22,8 @@ npm link
 
 Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar es `git pull`. Para quitarlo: `npm unlink -g sala-kit`. Sin instalar, lo mismo se corre con `node bin/sala.js`.
 
+`sala --help` muestra la ayuda. `--help`, `-h` y `--version` valen en cualquier lugar de los argumentos y nunca corren el comando: `sala enviar core /miembro-base --help` muestra la ayuda y no manda nada. La excepción es `sala motor`, que le pasa sus argumentos al motor tal cual.
+
 ## `sala init` y los comandos de la sala
 
 `sala init [--sala <carpeta>]` crea una sala en la carpeta (la actual por defecto; si no existe, la crea):
