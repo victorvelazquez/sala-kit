@@ -10,6 +10,7 @@ const { findMember, SalaError } = require('./abrir');
 const { SESSION_STATE } = require('./estado');
 const { mask } = require('./requisitos');
 const { paused } = require('./pausa');
+const { hostCall, pipePath } = require('./hospedar');
 
 const MAX_ORDER = 4000;
 const MAX_MISSES = 10;
@@ -76,6 +77,13 @@ function guard(config, salaDir, id, text) {
 }
 
 async function enviar(config, salaDir, id, text) {
+  // A hosted member gets the order through its host, which has the guards (D51).
+  const known = config.members.some((m) => m.id === id);
+  const hosted = known ? await hostCall(pipePath(config, salaDir, id), { action: 'prompt', text }) : null;
+  if (hosted) {
+    if (!hosted.ok) throw new SalaError(`${id}: ${hosted.error}`);
+    return { member: id, session: 'rpc', sent: true };
+  }
   const found = guard(config, salaDir, id, text);
   if (!logOrder(salaDir, { member: id, session: found.session.id, text, result: 'sending' })) {
     throw new SalaError(`${id}: no se pudo anotar la orden en .sala/ordenes.log; no se mandó`);
@@ -134,4 +142,4 @@ function esperarTexto(r) {
     : `${r.member}: terminó (sesión ${r.session}, ${SESSION_STATE[r.state]})\n`;
 }
 
-module.exports = { enviar, enviarTexto, esperar, esperarTexto, logOrder, guard, paused, onlySession };
+module.exports = { enviar, enviarTexto, esperar, esperarTexto, logOrder, guard, paused, onlySession, unreadable };
