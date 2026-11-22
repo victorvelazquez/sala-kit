@@ -214,7 +214,7 @@ Salen de dos revisiones de solo lectura: el proyecto `escritorio-ia-kit` y cómo
 
 | Familia | Comandos |
 |---|---|
-| Sala | `/sala-plan`, `/sala-estado`, `/sala-orden`, `/sala-entregar`, `/sala-fusionar`, `/sala-seguir`, `/sala-adoptar`, `/sala-soltar`, `/sala-revisar`, `/sala-pausar` |
+| Sala | `/sala-plan`, `/sala-estado`, `/sala-orden`, `/sala-entregar`, `/sala-fusionar`, `/sala-seguir`, `/sala-adoptar`, `/sala-soltar`, `/sala-revisar`, `/sala-pausar`, `/sala-novedades` |
 | Miembro | `/miembro-tarea`, `/miembro-entregar`, `/miembro-base`, `/miembro-informe` |
 
 ### Lo que conviene tomar de escritorio-ia-kit

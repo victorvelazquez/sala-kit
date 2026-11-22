@@ -46,6 +46,7 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
 | `/sala-adoptar [carpetas]` | Adopta las carpetas con `sala adoptar`, las revisa y, con tu OK por miembro, le manda la orden de ponerse en condiciones (`sala condiciones`) |
 | `/sala-soltar <miembro>` | Con tu OK, saca al miembro de la sala con `sala soltar`; su repositorio queda igual |
+| `/sala-novedades` | Lee qué cambió en Gentle Shell y en pi desde la versión de `contrato/gentle-shell.json` y numera lo que hay que ajustar y lo nuevo que conviene aprovechar, para que elijas qué pasa al roadmap del kit. Solo lee |
 | `/sala-pausar [minutos \| seguir]` | Pone la sala en pausa con `sala pausar` (con minutos, una pausa de prueba que vence sola) o la levanta con `sala seguir` |
 
 ## `sala.json`
