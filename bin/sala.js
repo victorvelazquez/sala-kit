@@ -17,6 +17,7 @@ const { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condici
 const { actualizar, actualizarTexto } = require('../src/actualizar');
 const { pausar, pausarTexto, seguir, seguirTexto, parseMinutes } = require('../src/pausa');
 const { motor, MotorError } = require('../src/motor');
+const { hospedar, hospedarTexto } = require('../src/hospedar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -64,10 +65,19 @@ Uso:
   sala mostrar <miembro> [--texto] [--sala <carpeta>]
                                              muestra la terminal de Orca que abrió la sala, o dice
                                              el título de su pestaña de Windows Terminal
+  sala hospedar <miembro> [--cerrar] [--primer-plano] [--texto] [--sala <carpeta>]
+                                             hospeda una sesión sin pantalla del miembro (RPC de pi) y
+                                             la mantiene viva en segundo plano; la sala le habla por
+                                             un pipe con nombre y contesta desde ahí toda pregunta
+                                             menos los consentimientos, que el anfitrión retiene;
+                                             reusa la que ya está y no abre otra junto a una sesión
+                                             viva. --cerrar la cierra si está libre y sin preguntas;
+                                             --primer-plano corre el anfitrión en esta terminal
   sala enviar <miembro> <orden> [--texto] [--sala <carpeta>]
                                              deja la orden en la bandeja de la única sesión viva del
                                              miembro, si no tiene una pregunta abierta, y la anota en
-                                             .sala/ordenes.log
+                                             .sala/ordenes.log; a un miembro hospedado se la da su
+                                             anfitrión, si no está trabajando
   sala esperar <miembro> [--texto] [--sala <carpeta>]
                                              espera a que el miembro termine de verdad (sin subagentes
                                              ni trabajos) o te necesite; tope de 30 minutos
@@ -79,7 +89,9 @@ Uso:
                                              entrega la opción que elegiste a una pregunta de una
                                              opción, si sigue siendo la que mostró sala preguntas, y
                                              la anota en .sala/ordenes.log; a un consentimiento o una
-                                             pregunta de la terminal no la contesta: muestra la pestaña
+                                             pregunta de la terminal no la contesta: muestra la pestaña.
+                                             A un miembro hospedado le contesta cualquier pregunta
+                                             (una opción, sí o no, o un texto) menos un consentimiento
   sala veredicto <miembro> <comando> [--texto] [--sala <carpeta>]
                                              comprueba lo que el comando debía dejar hecho: después de
                                              miembro-entregar (o flow-ship, flow-pr), la rama, el commit
@@ -144,7 +156,12 @@ const COMMANDS = {
   enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: 'una orden' },
   esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
   veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
-  preguntas: { run: (config) => preguntas(config), texto: preguntasTexto },
+  preguntas: { run: (config, opts) => preguntas(config, opts.sala), texto: preguntasTexto },
+  hospedar: {
+    run: (config, opts) => hospedar(config, opts.sala, opts.member, { cerrar: opts.cerrar, primerPlano: opts.primerPlano }),
+    texto: hospedarTexto,
+    member: 'required',
+  },
   reiniciar: { run: (config, opts) => reiniciar(config, opts.sala, opts.member), texto: reiniciarTexto, member: 'required' },
   modelo: { run: (config, opts) => modelo(config, opts.sala), texto: modeloTexto },
   pausar: { run: (config, opts) => pausar(opts.sala, opts.minutos), texto: pausarTexto },
@@ -173,7 +190,7 @@ function fail(error, details) {
 const ADOPT_FLAGS = { '--id': 'id', '--prefijo': 'prefijo', '--base': 'base', '--remoto': 'remoto' };
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, adopt: {}, texto: false, retomar: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, adopt: {}, texto: false, retomar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
@@ -183,6 +200,8 @@ function parseArgs(argv) {
       opts.adopt[ADOPT_FLAGS[arg]] = argv[(i += 1)];
     }
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
+    else if (arg === '--cerrar' && opts.command === 'hospedar') opts.cerrar = true;
+    else if (arg === '--primer-plano' && opts.command === 'hospedar') opts.primerPlano = true;
     else if (arg === '--pregunta' && opts.command === 'responder') {
       if (!argv[i + 1]) throw new ConfigError('--pregunta necesita el id de la pregunta');
       if (opts.pregunta !== null) throw new ConfigError('--pregunta va una sola vez');

@@ -8,6 +8,7 @@ const { readFeed, sendAction, feedRoots, CONSENT, bare } = require('./feed');
 const { findMember, mostrar, SalaError } = require('./abrir');
 const { logOrder } = require('./enviar');
 const { mask } = require('./requisitos');
+const { hostCall, pipePath } = require('./hospedar');
 
 const QUESTION_ID = /^[A-Za-z0-9_-]{1,128}$/;
 // What came from the arguments is echoed masked and without control characters.
@@ -21,16 +22,27 @@ function questionClass(raw) {
   return option ? 'option' : 'terminal';
 }
 
-function preguntas(config) {
+// The open dialogs of the hosted members, asked to each host (D51).
+async function hostedDialogs(config, salaDir) {
+  const all = await Promise.all(config.members.map((m) => hostCall(pipePath(config, salaDir, m.id), { action: 'status' }).catch(() => null)));
+  return Object.fromEntries(config.members.map((m, i) => [m.id, all[i] && all[i].ok ? all[i].dialogs : null]));
+}
+
+async function preguntas(config, salaDir) {
   const feed = readFeed(feedRoots(), config.members);
+  const hosted = await hostedDialogs(config, salaDir);
   const questions = [];
   for (const m of config.members) {
     feed.sessions[m.id].forEach((s, i) => {
       const raw = feed.targets[m.id][i].question;
-      if (!s.question || !raw) return;
+      // The hosted session's dialogs come from its host, not from its snapshot.
+      if (!s.question || !raw || (hosted[m.id] && s.mode === 'rpc')) return;
       const { text, options } = s.question;
       questions.push({ member: m.id, session: s.id, id: raw.id && shown(raw.id), class: questionClass(raw), text, options });
     });
+    for (const d of hosted[m.id] || []) {
+      questions.push({ member: m.id, session: 'rpc', id: shown(d.id), class: d.class === 'consent' ? 'consent' : 'option', text: d.text, options: d.options });
+    }
   }
   return { questions, warnings: feed.warnings };
 }
@@ -40,8 +52,10 @@ function preguntasTexto(r) {
     `${q.member} (sesión ${q.session}, pregunta ${q.id || 'sin id'}): ${q.text}`,
     ...(q.options.length ? [`  opciones: ${q.options.join(' | ')}`] : []),
     q.class === 'option'
-      ? `  se contesta desde la sala: sala responder ${q.member} <opción> --pregunta ${q.id}`
-      : `  ${q.class === 'consent' ? 'es un consentimiento: ' : ''}se contesta en la pestaña del miembro (sala mostrar ${q.member})`,
+      ? `  se contesta desde la sala: sala responder ${q.member} ${q.options.length ? '<opción>' : '<texto>'} --pregunta ${q.id}`
+      : q.session === 'rpc'
+        ? '  es un consentimiento: el anfitrión lo retiene; lo da la persona con sala consentir (SK7c)'
+        : `  ${q.class === 'consent' ? 'es un consentimiento: ' : ''}se contesta en la pestaña del miembro (sala mostrar ${q.member})`,
   ]);
   if (lines.length === 0) lines.push('ningún miembro tiene una pregunta abierta');
   return `${[...lines, ...r.warnings.map((w) => `aviso: ${w}`)].join('\n')}\n`;
@@ -75,6 +89,11 @@ async function responder(config, salaDir, id, answer, questionId) {
     findMember(config, id);
     if (!questionId) throw new SalaError('sala responder necesita --pregunta <id>, el que mostró sala preguntas');
     if (!QUESTION_ID.test(questionId)) throw new SalaError(`${id}: --pregunta no es un id de pregunta`);
+    // A hosted member's dialog is answered by its host, which checks it (D51); a question it
+    // does not have may still be one of a session in the feed.
+    const hosted = await hostCall(pipePath(config, salaDir, id), { action: 'answer', dialog: questionId, value: answer });
+    if (hosted && hosted.ok) return { member: id, session: 'rpc', question: shown(questionId), option: hosted.option, answered: true };
+    if (hosted && hosted.code !== 'unknown-dialog') throw new SalaError(`${id}: ${hosted.error}`);
     found = openQuestion(config, id, questionId);
     entry.session = found.session.id;
     const raw = found.target.question;

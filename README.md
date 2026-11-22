@@ -176,6 +176,21 @@ sala responder <miembro> <opción> --pregunta <id> [--texto] [--sala <carpeta>]
 
 `sala responder` entrega la opción que eligió la persona, como `answer_question` con el índice de la opción. La sala nunca contesta por su cuenta: la respuesta sale solo si `--pregunta` es el `id` que mostró `sala preguntas` y esa pregunta sigue abierta, y si la respuesta es exactamente una de sus opciones. Si la pregunta cambió, se niega. A un consentimiento o una pregunta de la terminal no la contesta: muestra la terminal de Orca que abrió la sala, o dice el título de su pestaña de Windows Terminal. Cada intento queda en `.sala/ordenes.log`, con los secretos enmascarados.
 
+## `sala hospedar`
+
+```
+sala hospedar <miembro> [--cerrar] [--primer-plano] [--texto] [--sala <carpeta>]
+```
+
+Es opcional: el kit funciona sin esto, con Orca o Windows Terminal y el feed. `sala hospedar` lanza en segundo plano una sesión sin pantalla del miembro, `gentle-shell --mode rpc` con `GENTLE_SHELL_INTERACTIVE_HOST=1` en su carpeta, y la mantiene viva, porque arrancar tarda más de un minuto (D51). El anfitrión escucha en un pipe con nombre, `\\.\pipe\sala-<sala>-<etiqueta>-<miembro>` en Windows o `.sala/host-<miembro>.sock` en Linux y Mac. La etiqueta sale de la carpeta de la sala, así dos salas con el mismo nombre no comparten pipe.
+
+- **Reusa y no duplica.** Si el miembro ya está hospedado, devuelve el mismo anfitrión. Si tiene una sesión viva en el feed, no abre otra.
+- **La sala le habla por el pipe.** `sala enviar` le da la orden si no está trabajando y no tiene una pregunta abierta. `sala preguntas` muestra sus diálogos con `session: "rpc"`. `sala responder` contesta cualquiera: una opción de un `select`, `sí` o `no` en un `confirm`, o un texto en un `input` o un `editor`. Así se contesta desde la sala una pregunta de varias partes, una parte por vez.
+- **Las guardas están en el anfitrión**, no en la CLI: la pausa, una orden ilegible, una respuesta que no es una opción y una acción desconocida se niegan aunque alguien le hable al pipe directo. Cada pedido queda en `.sala/ordenes.log` con `via: "rpc"`, con los secretos enmascarados.
+- **Un consentimiento lo retiene.** Todo diálogo cuyas palabras dicen `granted`, `declined` o `consent` es un consentimiento: el anfitrión nunca lo contesta. Lo da la persona con `sala consentir` en una terminal real (D48, SK7c).
+
+`--cerrar` cierra la sesión hospedada si está libre y sin preguntas: cierra su stdin y espera a que salga. `--primer-plano` corre el anfitrión en la terminal actual, hasta que la sesión termine.
+
 ## `sala veredicto`
 
 ```
