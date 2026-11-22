@@ -402,6 +402,17 @@ Un paquete de pi no instala agentes (D34), así que `sala instalar` copia los de
 
 Si no existe `~/.gentle-shell/agent`, se niega sin crear nada. No necesita una sala: los agentes son de la máquina. La sala manda estos comandos (`/sala-plan`, `/sala-seguir`, `/sala-entregar` y `sala fusionar`), nunca `/flow-*`. `sala veredicto` todavía acepta `flow-ship`, `flow-pr` y `flow-base` como puente, hasta SK5c.
 
+## Evals de conducta
+
+`node evals/rodar.js evals/casos.jsonl` comprueba que los comandos `/sala-*` se portan como dice el kit. Por ejemplo, que la sala no conteste por la persona y que no fusione sin su OK.
+
+- Cada caso corre en una sesión de Gentle Shell sin interacción, en una sala temporal.
+- La sesión solo tiene herramientas para leer y para preguntar: dice qué correría y sigue con las salidas que simula el caso.
+- **Gasta tokens.** Tiene un tope por caso (`--max-usd`) y otro por ronda (`--max-total-usd`).
+- Exige el 100 % en los casos de seguridad.
+
+La guía está en [`evals/LEEME.md`](evals/LEEME.md).
+
 ## Documentos
 
 - [`docs/DISENO.md`](docs/DISENO.md): todas las decisiones de diseño y lo que falta comprobar.
