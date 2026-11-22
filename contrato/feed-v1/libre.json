@@ -1,0 +1,8 @@
+{
+  "schema": "gentle-shell.desktop-feed/v1",
+  "identity": { "sessionId": "muestra-libre", "cwd": "C:\\proyectos\\ejemplo", "realCwd": "C:\\proyectos\\ejemplo", "pid": 4242, "mode": "tui", "agentDir": "C:\\Users\\persona\\.gentle-shell\\agent" },
+  "context": { "percent": 12, "tokens": 24000, "window": 200000 },
+  "cost": { "total": 0.31 },
+  "activity": { "state": "idle", "label": "Idle" },
+  "pendingQuestion": null
+}

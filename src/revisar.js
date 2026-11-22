@@ -6,6 +6,7 @@ const { run, gitError } = require('./run');
 const { ConfigError } = require('./config');
 const { memberRequirements, oldBlocks, noSecrets, REQUIREMENT_IDS } = require('./requisitos');
 const { agentWarnings, agentWarningText } = require('./instalar');
+const { contractCheck, contractText } = require('./contrato');
 
 const OUTPUT_SCHEMA = 1;
 
@@ -57,13 +58,15 @@ async function revisar(config, salaDir, only) {
   }
   const salaText = fs.readFileSync(path.join(salaDir, 'sala.json'), 'utf8');
   const sala = [noSecrets([['sala.json', salaText]])];
+  const [gentleShell, reviewed] = await Promise.all([contractCheck(), Promise.all(members.map(reviewMember))]);
   return {
     schema: OUTPUT_SCHEMA,
     sala: config.name,
     salaJson: { ok: sala.every((r) => r.ok), requirements: sala },
     // The kit's agents in this machine's Gentle Shell (D34): warnings, never a requirement.
-    kit: { agents: agentWarnings() },
-    members: await Promise.all(members.map(reviewMember)),
+    // The Gentle Shell and feed the kit was tested with (D47): warnings, never a requirement.
+    kit: { agents: agentWarnings(), gentleShell },
+    members: reviewed,
   };
 }
 
@@ -81,6 +84,7 @@ function revisarTexto(result) {
   const lines = [`Sala ${result.sala}`];
   block(lines, 'sala.json', result.salaJson.requirements);
   for (const a of result.kit.agents.filter((x) => x.fix)) lines.push(`  aviso: ${agentWarningText(a)}`);
+  lines.push(...contractText(result.kit.gentleShell));
   for (const m of result.members) block(lines, m.id, m.requirements, m.warnings);
   return `${lines.join('\n')}\n`;
 }

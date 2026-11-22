@@ -187,6 +187,26 @@ function readFeed(roots, members) {
   return { sessions, targets, warnings };
 }
 
+// The formats the snapshots publish, for the contract check of sala revisar (D47):
+// only the schema field is kept, and an unreadable file is skipped.
+function feedSchemas(roots) {
+  const schemas = new Set();
+  for (const root of uniqueRoots(roots)) {
+    const dir = path.join(root, 'desktop', 'sessions');
+    for (const file of sessionFiles(root, [])) {
+      try {
+        const stat = fs.lstatSync(path.join(dir, file));
+        if (!stat.isFile() || stat.size > MAX_SNAPSHOT) continue;
+        const snap = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+        if (snap && typeof snap.schema === 'string') schemas.add(clip(snap.schema, 80));
+      } catch {
+        // An unreadable snapshot says nothing about the format.
+      }
+    }
+  }
+  return [...schemas].sort();
+}
+
 // The closed list of D50: any other kind, or other args, is refused before writing.
 function allowed(kind, args) {
   const keys = args && typeof args === 'object' ? Object.keys(args).sort().join(',') : null;
@@ -267,4 +287,4 @@ async function sendAction(target, kind, args, { timeoutMs = 10000 } = {}) {
   return refuse('timeout', `la sesión no respondió en ${timeoutMs / 1000} s`);
 }
 
-module.exports = { readFeed, sendAction, feedRoots, FEED_SCHEMA, CONSENT, bare };
+module.exports = { readFeed, feedSchemas, sendAction, feedRoots, FEED_SCHEMA, CONSENT, bare };

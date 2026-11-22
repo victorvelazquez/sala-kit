@@ -1,0 +1,8 @@
+{
+  "schema": "gentle-shell.desktop-feed/v1",
+  "identity": { "sessionId": "muestra-esperando", "cwd": "C:\\proyectos\\ejemplo", "realCwd": "C:\\proyectos\\ejemplo", "pid": 4244, "mode": "rpc", "agentDir": "C:\\Users\\persona\\.gentle-shell\\agent" },
+  "context": { "percent": 30, "tokens": 60000, "window": 200000 },
+  "cost": { "total": 0.75 },
+  "activity": { "state": "waiting", "label": "Waiting on 2 agents" },
+  "pendingQuestion": null
+}

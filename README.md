@@ -330,6 +330,8 @@ Cada miembro trae también `warnings`: avisos que no hacen fallar, como el bloqu
 
 `kit.agents` dice cómo está en esta máquina cada agente del kit: `al-dia`, `falta`, `vieja`, `editada`, `ajena` o `sin-gentle-shell` (no hay `~/.gentle-shell/agent`: no avisa), con la orden que lo arregla (`sala instalar` o `sala instalar --forzar`). También es un aviso: no hace fallar y `sala revisar` nunca instala nada.
 
+`kit.gentleShell` es el contrato con Gentle Shell (D47). `tested` es la versión de Gentle Shell, la de pi y el formato del feed con que se probó el kit, anotados en `contrato/gentle-shell.json`. `installed` es lo que dice `gentle-shell --version` en esta máquina, o `null` si no se pudo leer. `feeds` son los formatos que publican las sesiones vivas. Si algo no coincide, `warnings` lo dice antes de que falle en el día a día. Es un aviso: no hace fallar. Después de actualizar Gentle Shell, revisá qué cambió. Si el kit sigue andando, anotá la versión nueva en `contrato/gentle-shell.json`. Las muestras de `contrato/feed-v1/` son snapshots sin datos privados que `test/contrato.test.js` lee con el adaptador del feed. Están armadas desde el esquema, porque el modelo de la sala no lee la carpeta del feed (D50).
+
 ## Adoptar y soltar miembros
 
 ```
