@@ -152,7 +152,7 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
   - **El bloque del miembro lo pone el propio miembro**, con `sala unirse`, en una tarea con su PR: así su base no queda sucia. Si `AGENTS.md` tiene reglas propias sin las marcas, `sala unirse` deja un `.sugerido` y el miembro lo pasa con el OK de la persona.
   - **La orden de ponerse en condiciones es `sala condiciones <miembro>`**: la arma el kit con lo que falla en `sala revisar` y va con las guardas de `sala enviar`.
   - **`sala adoptar` deduce** el id y el prefijo del nombre de la carpeta, el remoto (`origin`) y la base (`origin/HEAD`), y cada dato se puede pasar con su flag.
-- **D26.** **Quién manda en los miembros: la sala.** El kit instala su propio bloque administrado en el `AGENTS.md` de cada miembro. El bloque `panel:entrega` de repo-panel, que hoy dice que la entrega es **solo** con `/flow-*`, choca con `/miembro-entregar`. Se retira de los miembros en la fase 5, **no antes**: hasta entonces los miembros siguen con `/flow-*` y no hay choque.
+- **D26.** **Quién manda en los miembros: la sala.** El kit instala su propio bloque administrado en el `AGENTS.md` de cada miembro. El bloque `panel:entrega` de repo-panel, que hoy dice que la entrega es **solo** con `/flow-*`, choca con `/miembro-entregar`. Se retira de los miembros en la fase 5, **no antes**: hasta entonces los miembros siguen con `/flow-*` y no hay choque. *Cambiada el 2026-11-22 por D52: los bloques viejos se ponen al día cuando el repo entra a la sala, sin esperar a la fase 5.*
 
 ## Actualizar las salas
 
@@ -306,3 +306,17 @@ Salen de las mediciones de SK7a ([informe](MEDICIONES-SK7a.md)). La persona las 
   - contesta solo los diálogos que esperan respuesta (`select`, `confirm`, `input`, `editor`); los avisos (`notify`, `setStatus`, `setWidget`) se descartan;
   - la sesión hospedada publica su snapshot en el feed como cualquier otra (D46), así que `sala estado` y `sala esperar` la miran igual.
   - **Cómo quedó en SK7b (2026-11-21).** El nombre del pipe lleva además una etiqueta de 8 caracteres sacada de la carpeta de la sala (`sala-<instancia>-<etiqueta>-<miembro>`), así dos salas con el mismo nombre no comparten pipe. Un pedido por conexión, una línea JSON de ida y una de vuelta, con cuatro acciones: `status`, `prompt`, `answer` y `close`. El anfitrión no manda una orden mientras la sesión trabaja (entre `agent_start` y `agent_settled`) ni con un diálogo abierto, y no la cierra en esos casos. Un consentimiento se reconoce por sus palabras (`granted`, `declined` o `consent` en el título, el mensaje o las opciones, sin invisibles): ante la duda se retiene. Si el miembro ya tiene una sesión viva en el feed, `sala hospedar` no abre otra. El pipe no lleva una clave: cualquier proceso de la persona puede hablarle, pero solo con esas cuatro acciones y las guardas del anfitrión.
+
+## Decisiones de la séptima ronda (2026-11-22)
+
+Salen de la primera prueba real de una sala: `tools-sala`, con repo-panel como miembro.
+
+- **D52. La sala pone al día los bloques viejos de los miembros.** Decisión de la persona del 2026-11-22. Los bloques `panel:tareas`, `panel:entrega` y `orquestacion:ciclo` los escribimos nosotros antes de que existiera la sala, así que la sala tiene autoridad para cambiarlos. En repo-panel chocan con ella: `panel:entrega` dice que `/flow-*` es el «ÚNICO» mecanismo de entrega, `panel:tareas` deja «sin efecto» cualquier otra forma de tomar tareas, y `orquestacion:ciclo` prohíbe al agente correr el commit y el PR, que es lo que hace `/miembro-entregar`. Por eso:
+  - el kit trae un catálogo de esos bloques con su versión compatible, y `sala unirse` los reemplaza entre sus marcas en la misma pasada que pone el bloque del miembro. Fuera de las marcas no escribe nunca;
+  - la entrega queda así: las órdenes de la sala entregan con `/miembro-entregar`; la persona, en una sesión que abre a mano, entrega con `/flow-*` o con `/miembro-entregar`; nadie entrega con `git commit` suelto. Los dos caminos usan el mismo motor (D22);
+  - `panel:tareas` pierde la cláusula que deja sin efecto a las demás, y aclara que `/miembro-tarea` aplica sus mismas reglas;
+  - `orquestacion:ciclo` aclara que una orden de la sala cuenta como si la diera la persona;
+  - las reglas desconocidas, fuera de toda marca, no se tocan solas: la sesión del miembro le muestra a la persona el cambio exacto, línea por línea, y lo aplica solo con su OK por `ask_user_choice`;
+  - `sala revisar` suma el requisito «sin bloques viejos», con la orden para cumplirlo, y `sala condiciones` se la manda al miembro.
+
+  Las fuentes que vuelven a instalar las versiones viejas se retiran, para que no reviertan el cambio: los chequeos de `rp41-standard` en repo-panel (repo-panel integrará sala-kit como una función más cuando el kit ande entero) y la plantilla de origen de `orquestacion:ciclo`.
