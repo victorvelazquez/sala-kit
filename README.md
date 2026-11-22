@@ -318,6 +318,8 @@ Un secreto (token de GitHub, clave `sk-`, clave de AWS, clave privada o URL con 
 
 Cada miembro trae también `warnings`: avisos que no hacen fallar, como el bloque viejo `panel:entrega` de repo-panel, que sigue hasta la fase 5 (D26).
 
+`kit.agents` dice cómo está en esta máquina cada agente del kit: `al-dia`, `falta`, `vieja`, `editada`, `ajena` o `sin-gentle-shell` (no hay `~/.gentle-shell/agent`: no avisa), con la orden que lo arregla (`sala instalar` o `sala instalar --forzar`). También es un aviso: no hace fallar y `sala revisar` nunca instala nada.
+
 ## Adoptar y soltar miembros
 
 ```
@@ -384,7 +386,21 @@ Los comandos del miembro se cargan con el kit y se niegan fuera de un miembro (`
 - **`/miembro-base`** vuelve a la rama base y la trae del remoto solo con avance rápido. Nunca borra ramas, ni guarda en el stash, ni fuerza nada.
 - **`/miembro-informe`** cuenta el avance del proyecto entero: lo hecho, lo en curso, lo pendiente en orden y el paso siguiente. Solo lee.
 
-El motor corre en la conversación del miembro, sin subagente: el kit todavía no instala agentes (SK5d). La sala manda estos comandos (`/sala-plan`, `/sala-seguir`, `/sala-entregar` y `sala fusionar`), nunca `/flow-*`. `sala veredicto` todavía acepta `flow-ship`, `flow-pr` y `flow-base` como puente, hasta SK5c.
+Con el agente `miembro-entrega` instalado (`sala instalar`), `/miembro-entregar` le delega la entrega entera y el motor corre en ese agente, con el modelo que la persona le elija en sus perfiles de modelos; sin el agente, corre en la conversación del miembro.
+
+### `sala instalar`
+
+```
+sala instalar [--forzar] [--texto]
+```
+
+Un paquete de pi no instala agentes (D34), así que `sala instalar` copia los de `agents/` del kit a `~/.gentle-shell/agent/agents/`. Hoy es uno, `miembro-entrega`. La copia no fija modelo y termina con una marca, `<!-- sala-kit: version X sha256 H -->`, con la versión del kit y el hash de lo que escribió. Con esa marca sabe:
+
+- **`falta`** o **`vieja`** (la escribió otra versión del kit): la escribe, con un renombre;
+- **`al-dia`**: no la toca;
+- **`editada`** (el texto no coincide con su marca) o **`ajena`** (un archivo con ese nombre que el kit no escribió): **no la pisa**, salvo con `--forzar`, y sale con 1.
+
+Si no existe `~/.gentle-shell/agent`, se niega sin crear nada. No necesita una sala: los agentes son de la máquina. La sala manda estos comandos (`/sala-plan`, `/sala-seguir`, `/sala-entregar` y `sala fusionar`), nunca `/flow-*`. `sala veredicto` todavía acepta `flow-ship`, `flow-pr` y `flow-base` como puente, hasta SK5c.
 
 ## Documentos
 

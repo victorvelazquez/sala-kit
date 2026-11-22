@@ -5,6 +5,7 @@ const path = require('node:path');
 const { run, gitError } = require('./run');
 const { ConfigError } = require('./config');
 const { memberRequirements, oldBlocks, noSecrets, REQUIREMENT_IDS } = require('./requisitos');
+const { agentWarnings, agentWarningText } = require('./instalar');
 
 const OUTPUT_SCHEMA = 1;
 
@@ -60,6 +61,8 @@ async function revisar(config, salaDir, only) {
     schema: OUTPUT_SCHEMA,
     sala: config.name,
     salaJson: { ok: sala.every((r) => r.ok), requirements: sala },
+    // The kit's agents in this machine's Gentle Shell (D34): warnings, never a requirement.
+    kit: { agents: agentWarnings() },
     members: await Promise.all(members.map(reviewMember)),
   };
 }
@@ -77,6 +80,7 @@ function block(lines, label, requirements, warnings = []) {
 function revisarTexto(result) {
   const lines = [`Sala ${result.sala}`];
   block(lines, 'sala.json', result.salaJson.requirements);
+  for (const a of result.kit.agents.filter((x) => x.fix)) lines.push(`  aviso: ${agentWarningText(a)}`);
   for (const m of result.members) block(lines, m.id, m.requirements, m.warnings);
   return `${lines.join('\n')}\n`;
 }

@@ -67,13 +67,20 @@ function salaConfig(members) {
 
 const FAKE_GH = path.join(__dirname, 'fixtures', 'fake-gh.js');
 
-// The tests never call the real gh nor read the real feed: by default gh answers
-// with no open PRs and the feed is a folder that does not exist.
+// The tests never call the real gh nor read the real feed or Gentle Shell: by default gh
+// answers with no open PRs, and the feed and the Gentle Shell home are folders that do not exist.
 function runSala(cwd, args, env = {}) {
   const res = spawnSync(process.execPath, [BIN, ...args], {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, SALA_GH: FAKE_GH, FAKE_GH_OUT: '[]', SALA_FEED_ROOTS: path.join(cwd, 'sin-feed'), ...env },
+    env: {
+      ...process.env,
+      SALA_GH: FAKE_GH,
+      FAKE_GH_OUT: '[]',
+      SALA_FEED_ROOTS: path.join(cwd, 'sin-feed'),
+      SALA_GENTLE_AGENT_DIR: path.join(cwd, 'sin-gentle'),
+      ...env,
+    },
   });
   return { code: res.status, stdout: res.stdout, stderr: res.stderr };
 }
