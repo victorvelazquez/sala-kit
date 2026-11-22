@@ -225,7 +225,14 @@ Salen de dos revisiones de solo lectura: el proyecto `escritorio-ia-kit` y cómo
 - **D40. Cadenas con topes y registro.** Un tope de pasos y de tiempo, los argumentos sin pasar por una shell (`spawnSync` con lista), y una línea de registro por paso. Viene de `scripts/rodar-rotina.mjs`. Va en SK3b.
 - **D41. Escribir sin pisar.** `sala init` y `/sala-adoptar` nunca sobrescriben: informan qué hicieron y qué saltearon. Si un `AGENTS.md` no tiene las marcas del bloque administrado, dejan al lado un archivo `.sugerido`. Viene de `scripts/iniciar.mjs`. Va en SK3a, SK4a y SK4b. **Reglas que chocan** (aprobado por la persona el 2026-11-21, al empezar SK3a): el bloque nunca dice que gana; si una regla de afuera lo contradice, el agente no elige y le pregunta a la persona. Las marcas viejas conocidas (como `panel:entrega`) se detectan con código y frenan la adopción (**cambiado en SK4a**, el 2026-11-21: avisan y no frenan, porque hasta la fase 5 el bloque del miembro no habla de entrega y no hay choque, D26); las contradicciones de reglas sueltas las lista el comando con modelo (`/sala-adoptar`, SK4a) citando líneas, y la persona decide. Nunca se borra texto fuera de las marcas.
 - **D42. Requisitos de higiene.** El catálogo de `sala revisar` suma un tamaño máximo para `AGENTS.md` y que no haya secretos en `sala.json` ni en las reglas. Viene de `scripts/brain-lint.mjs`. Va en SK1c.
-- **D43. Más adelante, opcional: evals de los comandos de la sala.** Casos en JSONL que comprueban conductas: la sala no contesta por la persona (D17) y no fusiona sin OK (D19). Llevan un tope de gasto. Viene de `evals/rodar.mjs`. Cuesta tokens, y las banderas para correr pi así no están comprobadas.
+- **D43. Más adelante, opcional: evals de los comandos de la sala.** Casos en JSONL que comprueban conductas: la sala no contesta por la persona (D17) y no fusiona sin OK (D19). Llevan un tope de gasto. Viene de `evals/rodar.mjs`. Cuesta tokens. Hecho en SK8 con `evals/rodar.js`, con esta forma:
+  - Gentle Shell no tiene una bandera de tope de gasto. El corredor abre `gentle-shell --mode rpc --no-session --no-mcp --tools read,grep,find,ls,ask_user_choice,ask_user_question` con la línea fija de `sala hospedar`, y suma el `usage.cost.total` de cada mensaje.
+  - Al pasar el tope del caso, aborta la sesión. Al llegar al tope de la ronda, no corre más casos.
+  - La sesión no tiene shell: dice `CORRERÍA: <comando>` y sigue con las salidas que simula el caso.
+  - Medido el 2026-11-22 con el Gentle Shell real:
+    - La sesión arranca por `cmd.exe /d /s /c` y las herramientas quedan en esas seis, sin bash. Igual, el corredor hace fallar el caso que use otra.
+    - Un caso cuesta unos US$ 0.13 y tarda unos 2 minutos y medio.
+    - Gentle Shell suelta la carpeta unos segundos después de que termina `cmd.exe`: el borrado de la sala temporal reintenta.
 - **D44. Más adelante, opcional: programar el plan del día** con un comando que **imprime** la tarea programada de Windows y nunca la instala. Viene de `scripts/agendar.mjs`.
 
 **No se toma:**
