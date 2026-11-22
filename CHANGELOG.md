@@ -8,6 +8,7 @@ La primera versión. `sala.json` tiene `schema: 1`.
 
 - **La CLI `sala`.** Cubre:
   - crear y mirar la sala: `init`, `donde`, `estado`, `plan` y `revisar`;
+  - programar el plan del día: `agendar`, que imprime la tarea de Windows y nunca la instala;
   - las sesiones de los miembros: `abrir`, `mostrar`, `enviar`, `esperar`, `preguntas` y `responder`;
   - juzgar y fusionar: `veredicto`, `fusionar`, `reiniciar` y `modelo`;
   - los miembros: `adoptar`, `soltar`, `unirse` y `condiciones`;

@@ -296,6 +296,16 @@ Cola
   espera: brand B3: Bloqueada: Falta el logo
 ```
 
+## `sala agendar`
+
+```
+sala agendar [--hora <HH:MM>] [--texto] [--sala <carpeta>]
+```
+
+Imprime la orden de PowerShell que crea una tarea programada de Windows: todos los días a la hora pedida (`08:00` por defecto) corre `sala plan --texto` en la sala y deja el resultado en `.sala/plan-del-dia.txt`, con el error adentro si falla (D44). **Nunca la instala**: la instalás vos, copiando la orden en PowerShell. Imprime también la orden para quitarla. Las rutas son absolutas: la de `node`, la de `bin/sala.js` del kit instalado y la de la sala. La tarea se llama `sala-plan-<name>` y corre solo con tu sesión de Windows abierta. Es mecánica: no abre ninguna sesión ni gasta tokens.
+
+Una carpeta con `%` se niega, porque `cmd` lo expandiría. Si movés el kit o la sala, quitá la tarea y volvé a correr `sala agendar`.
+
 ## `sala revisar`
 
 ```

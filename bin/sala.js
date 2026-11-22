@@ -20,6 +20,7 @@ const { motor, MotorError } = require('../src/motor');
 const { hospedar, hospedarTexto } = require('../src/hospedar');
 const { consentir, consentirTexto } = require('../src/consentir');
 const { instalar, instalarTexto } = require('../src/instalar');
+const { agendar, agendarTexto, parseHora } = require('../src/agendar');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -47,6 +48,11 @@ Uso:
   sala plan [--texto] [--sala <carpeta>]     por miembro: lo que está en curso, la siguiente tarea lista
                                              y lo que espera, con el motivo; y la cola de la sala
                                              en olas que pueden correr en paralelo
+  sala agendar [--hora <HH:MM>] [--texto] [--sala <carpeta>]
+                                             imprime la orden de PowerShell que programa en Windows
+                                             sala plan todos los días (08:00 por defecto), con su
+                                             salida en .sala/plan-del-dia.txt, y la orden para
+                                             quitarla; nunca la instala
   sala revisar [miembro] [--texto] [--sala <carpeta>]
                                              qué requisitos cumple cada miembro y, para los que
                                              faltan, la orden para cumplirlos; y sus avisos, con
@@ -143,6 +149,7 @@ Opciones:
   --pregunta <id>    con responder: el id de la pregunta que mostró sala preguntas
   --forzar           con instalar: reemplaza también la copia editada o ajena
   --minutos <n>      con pausar: la pausa vence sola a los n minutos (hasta 1440)
+  --hora <HH:MM>     con agendar: la hora del plan del día (por defecto, 08:00)
   --id, --prefijo, --base, --remoto
                      con adoptar: el dato del miembro, en vez de deducirlo
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
@@ -164,6 +171,7 @@ const COMMANDS = {
     texto: (result, opts) => (opts.retomar ? retomarTexto(result) : estadoTexto(result)),
   },
   plan: { run: (config) => plan(config), texto: planTexto },
+  agendar: { run: (config, opts) => agendar(config, opts.sala, opts.hora), texto: agendarTexto },
   revisar: { run: (config, opts) => revisar(config, opts.sala, opts.member), texto: revisarTexto, member: true },
   abrir: { run: (config, opts) => abrir(config, opts.sala, opts.member), texto: abrirTexto, member: 'required' },
   mostrar: { run: (config, opts) => mostrar(config, opts.sala, opts.member), texto: mostrarTexto, member: 'required' },
@@ -205,7 +213,7 @@ function fail(error, details) {
 const ADOPT_FLAGS = { '--id': 'id', '--prefijo': 'prefijo', '--base': 'base', '--remoto': 'remoto' };
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, adopt: {}, texto: false, retomar: false, forzar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, hora: null, adopt: {}, texto: false, retomar: false, forzar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
@@ -225,6 +233,9 @@ function parseArgs(argv) {
     } else if (arg === '--minutos' && opts.command === 'pausar') {
       if (opts.minutos !== null) throw new ConfigError('--minutos va una sola vez');
       opts.minutos = parseMinutes(argv[(i += 1)]);
+    } else if (arg === '--hora' && opts.command === 'agendar') {
+      if (opts.hora !== null) throw new ConfigError('--hora va una sola vez');
+      opts.hora = parseHora(argv[(i += 1)]);
     } else if (arg === '--sala') {
       if (!argv[i + 1]) throw new ConfigError('--sala necesita una carpeta');
       opts.sala = path.resolve(argv[(i += 1)]);
