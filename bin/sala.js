@@ -18,6 +18,7 @@ const { actualizar, actualizarTexto } = require('../src/actualizar');
 const { pausar, pausarTexto, seguir, seguirTexto, parseMinutes } = require('../src/pausa');
 const { motor, MotorError } = require('../src/motor');
 const { hospedar, hospedarTexto } = require('../src/hospedar');
+const { consentir, consentirTexto } = require('../src/consentir');
 const { version } = require('../package.json');
 
 const HELP = `sala ${version}
@@ -92,6 +93,11 @@ Uso:
                                              pregunta de la terminal no la contesta: muestra la pestaña.
                                              A un miembro hospedado le contesta cualquier pregunta
                                              (una opción, sí o no, o un texto) menos un consentimiento
+  sala consentir <miembro> [--texto] [--sala <carpeta>]
+                                             da el consentimiento que pidió una sesión hospedada: solo
+                                             en una terminal interactiva, con la opción que tipeás en
+                                             ese momento (nunca como argumento); queda en
+                                             .sala/ordenes.log
   sala veredicto <miembro> <comando> [--texto] [--sala <carpeta>]
                                              comprueba lo que el comando debía dejar hecho: después de
                                              miembro-entregar (o flow-ship, flow-pr), la rama, el commit
@@ -162,6 +168,7 @@ const COMMANDS = {
     texto: hospedarTexto,
     member: 'required',
   },
+  consentir: { run: (config, opts) => consentir(config, opts.sala, opts.member, { answerArg: opts.answerArg }), texto: consentirTexto, member: 'required' },
   reiniciar: { run: (config, opts) => reiniciar(config, opts.sala, opts.member), texto: reiniciarTexto, member: 'required' },
   modelo: { run: (config, opts) => modelo(config, opts.sala), texto: modeloTexto },
   pausar: { run: (config, opts) => pausar(opts.sala, opts.minutos), texto: pausarTexto },
@@ -216,6 +223,9 @@ function parseArgs(argv) {
     else if (!opts.command && !arg.startsWith('-')) opts.command = arg;
     else if (COMMANDS[opts.command]?.member && !opts.member && !arg.startsWith('-')) opts.member = arg;
     else if (COMMANDS[opts.command]?.order && opts.member && opts.order === null && !arg.startsWith('-')) opts.order = arg;
+    // D48: the consent is typed by the person, and an argument is what the sala's model could
+    // write; sala consentir refuses it and logs the attempt.
+    else if (opts.command === 'consentir' && opts.member && !arg.startsWith('-')) opts.answerArg = true;
     else throw new ConfigError(`argumento desconocido: ${arg}`);
   }
   return opts;

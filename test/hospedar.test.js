@@ -205,3 +205,86 @@ test('sala hospedar does not open a second session next to a live one, nor for a
   assert.equal(notHosted.code, 1);
   assert.equal(err(notHosted), 'web: no tiene una sesión hospedada');
 });
+
+// A terminal for sala consentir: what the person types, and what it shows.
+function terminal(typed) {
+  const { PassThrough } = require('node:stream');
+  const input = new PassThrough();
+  const output = new PassThrough();
+  input.isTTY = true;
+  output.isTTY = true;
+  let shownText = '';
+  output.setEncoding('utf8');
+  output.on('data', (d) => { shownText += d; });
+  input.end(typed);
+  return { input, output, shown: () => shownText };
+}
+
+const logLines = (s) => s.log().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+
+test('the sala cannot give a consent by itself: without a terminal, as an argument or straight through the pipe', async (t) => {
+  const s = hostSala(t);
+  const host = JSON.parse((await s.sala('hospedar', 'core')).stdout);
+  await s.sala('enviar', 'core', 'pedí el consent');
+  await questionsWhen(s, (qs) => qs.length === 1);
+
+  const noTty = await s.sala('consentir', 'core');
+  assert.equal(noTty.code, 1);
+  assert.equal(err(noTty), 'core: sala consentir se corre en una terminal interactiva: la respuesta la tipea la persona en ese momento');
+  const asArgument = await s.sala('consentir', 'core', '1');
+  assert.equal(asArgument.code, 1);
+  assert.equal(err(asArgument), 'sala consentir no lleva la respuesta como argumento: la tipea la persona en la terminal');
+  for (const args of [['consentir', 'core', '--texto', '2'], ['consentir', '1', 'core']]) {
+    assert.equal(err(await s.sala(...args)), 'sala consentir no lleva la respuesta como argumento: la tipea la persona en la terminal');
+  }
+  const notOption = await rawCall(host.pipe, `${JSON.stringify({ action: 'consent', dialog: 'c-1', value: 'granted', tty: true })}\n`);
+  assert.deepEqual(notOption, { ok: false, error: '«granted» no es una opción de la pregunta c-1 (1. Review it — granted, 2. Skip it — declined, 3. Allow for this session)' });
+  for (const tty of [undefined, 'yes', 'true', 1]) {
+    const raw = await rawCall(host.pipe, `${JSON.stringify({ action: 'consent', dialog: 'c-1', value: '1. Review it — granted', tty })}\n`);
+    assert.deepEqual(raw, { ok: false, error: 'un consentimiento solo lo da la persona con sala consentir, en una terminal interactiva' });
+  }
+
+  assert.equal(s.pi().filter((r) => r.type === 'extension_ui_response').length, 0);
+  const [still] = await questionsWhen(s, (qs) => qs.length === 1);
+  assert.equal(still.id, 'c-1');
+  const refused = logLines(s).filter((l) => l.result === 'refused');
+  assert.equal(refused.length, 9, 'every attempt is logged, the answer as an argument too');
+});
+
+test('the person gives a consent with sala consentir, typing it in a real terminal', async (t) => {
+  const s = hostSala(t);
+  await s.sala('hospedar', 'core');
+  const { loadConfig } = require('../src/config');
+  const { consentir } = require('../src/consentir');
+  const config = loadConfig(s.dir);
+
+  await assert.rejects(consentir(config, s.dir, 'core', terminal('1\n')), { message: 'core: la sesión hospedada no tiene un consentimiento abierto' });
+
+  await s.sala('enviar', 'core', 'pedí el consent');
+  await questionsWhen(s, (qs) => qs.length === 1);
+  for (const typed of ['7\n', 'granted\n', '\n']) {
+    await assert.rejects(consentir(config, s.dir, 'core', terminal(typed)), { message: /^core: (no se contestó el consentimiento|«.*» no es el número de una opción \(1 a 3\))$/ });
+  }
+  assert.equal(s.pi().filter((r) => r.type === 'extension_ui_response').length, 0);
+
+  const term = terminal('2\n');
+  const given = await consentir(config, s.dir, 'core', term);
+  assert.deepEqual(given, { member: 'core', session: 'rpc', question: 'c-1', option: '2. Skip it — declined', consented: true });
+  assert.match(term.shown(), /Review this change\?/);
+  assert.match(term.shown(), /\[3\] 3\. Allow for this session/);
+  assert.ok(!term.shown().includes('\u001b'), 'what pi wrote cannot redraw the person\'s terminal');
+  assert.deepEqual(s.pi().filter((r) => r.type === 'extension_ui_response'), [{ type: 'extension_ui_response', id: 'c-1', value: '2. Skip it — declined' }]);
+  const last = logLines(s).at(-1);
+  assert.equal(last.result, 'consented');
+  assert.equal(last.question, 'c-1');
+  assert.equal(last.text, '2. Skip it — declined');
+  await questionsWhen(s, (qs) => qs.length === 0);
+
+  // A question that is not a consent is answered with sala responder, never here.
+  await s.sala('enviar', 'core', 'confirmá');
+  await questionsWhen(s, (qs) => qs.length === 1);
+  const host = JSON.parse((await s.sala('hospedar', 'core')).stdout);
+  const raw = await rawCall(host.pipe, `${JSON.stringify({ action: 'consent', dialog: 'k-1', value: 'sí', tty: true })}\n`);
+  assert.deepEqual(raw, { ok: false, error: 'la pregunta k-1 no es un consentimiento: se contesta con sala responder' });
+  assert.equal(s.pi().filter((r) => r.type === 'extension_ui_response').length, 1);
+});
