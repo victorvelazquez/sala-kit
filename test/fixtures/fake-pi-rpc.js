@@ -41,7 +41,7 @@ function handle(record) {
     } else if (text.includes('consent')) {
       waiting = 'consent';
       ask('c-1', 'select', {
-        title: 'Review this change?\nReason: high risk\nRisk: item 2\nOwnership: provider',
+        title: 'Review this change?\u001b[2K\nReason: high risk\nRisk: item 2\nOwnership: provider',
         options: ['1. Review it — granted', '2. Skip it — declined', '3. Allow for this session'],
       });
     } else if (text.includes('confirmá')) {

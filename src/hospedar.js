@@ -5,7 +5,7 @@
 // and talks to it through a named pipe. This is the rpc adapter: it covers both ports.
 // The guards live here, in the process that talks to pi, and not in the CLI the model runs:
 // the pause, an unreadable order, an answer that is not an option, an unknown action, and a
-// consent, which the host keeps and never answers (the person gives it with sala consentir, SK7c).
+// consent, which the host keeps: only `consent`, sent by sala consentir from a terminal, gives it (D48).
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -152,8 +152,25 @@ function runHost(config, salaDir, member) {
   function answer(id, value) {
     const dialog = typeof id === 'string' ? dialogs.get(id) : undefined;
     if (!dialog) return refuse('la pregunta ya no está abierta', 'unknown-dialog');
+    if (dialog.class === 'consent') return refuse(`la pregunta ${shown(id)} es un consentimiento: el anfitrión no la contesta; la da la persona con sala consentir (SK7c)`);
+    return deliver(id, dialog, value);
+  }
+
+  // D48: a consent goes only from sala consentir, which checks that the person typed it in a
+  // terminal and says so with `tty: true`. The pipe cannot see the caller's terminal, so this
+  // keeps the sala's model out (its bash has none), not a process that lies about it.
+  function consent(id, value, tty) {
+    const dialog = typeof id === 'string' ? dialogs.get(id) : undefined;
+    if (!dialog) return refuse('la pregunta ya no está abierta', 'unknown-dialog');
+    if (tty !== true) return refuse('un consentimiento solo lo da la persona con sala consentir, en una terminal interactiva');
+    if (dialog.class !== 'consent') return refuse(`la pregunta ${shown(id)} no es un consentimiento: se contesta con sala responder`);
+    // A consent is given by choosing one of its options; free text is never one.
+    if (dialog.method !== 'select' && dialog.method !== 'confirm') return refuse(`el consentimiento ${shown(id)} no tiene opciones: el anfitrión no lo contesta`);
+    return deliver(id, dialog, value);
+  }
+
+  function deliver(id, dialog, value) {
     const name = shown(id);
-    if (dialog.class === 'consent') return refuse(`la pregunta ${name} es un consentimiento: el anfitrión no la contesta; la da la persona con sala consentir (SK7c)`);
     if (typeof value !== 'string') return refuse('la respuesta tiene que ser un texto');
     const notOption = refuse(`«${shown(value)}» no es una opción de la pregunta ${name} (${dialog.options.join(', ')})`);
     let response;
@@ -212,6 +229,11 @@ function runHost(config, salaDir, member) {
     if (action === 'answer') {
       const res = answer(req.dialog, req.value);
       log(req.value, res.ok ? 'answered' : 'refused', typeof req.dialog === 'string' ? req.dialog : null);
+      return res;
+    }
+    if (action === 'consent') {
+      const res = consent(req.dialog, req.value, req.tty);
+      log(req.value, res.ok ? 'consented' : 'refused', typeof req.dialog === 'string' ? req.dialog : null);
       return res;
     }
     if (action === 'close') {

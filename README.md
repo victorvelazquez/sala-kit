@@ -187,9 +187,24 @@ Es opcional: el kit funciona sin esto, con Orca o Windows Terminal y el feed. `s
 - **Reusa y no duplica.** Si el miembro ya está hospedado, devuelve el mismo anfitrión. Si tiene una sesión viva en el feed, no abre otra.
 - **La sala le habla por el pipe.** `sala enviar` le da la orden si no está trabajando y no tiene una pregunta abierta. `sala preguntas` muestra sus diálogos con `session: "rpc"`. `sala responder` contesta cualquiera: una opción de un `select`, `sí` o `no` en un `confirm`, o un texto en un `input` o un `editor`. Así se contesta desde la sala una pregunta de varias partes, una parte por vez.
 - **Las guardas están en el anfitrión**, no en la CLI: la pausa, una orden ilegible, una respuesta que no es una opción y una acción desconocida se niegan aunque alguien le hable al pipe directo. Cada pedido queda en `.sala/ordenes.log` con `via: "rpc"`, con los secretos enmascarados.
-- **Un consentimiento lo retiene.** Todo diálogo cuyas palabras dicen `granted`, `declined` o `consent` es un consentimiento: el anfitrión nunca lo contesta. Lo da la persona con `sala consentir` en una terminal real (D48, SK7c).
+- **Un consentimiento lo retiene.** Todo diálogo cuyas palabras dicen `granted`, `declined` o `consent` es un consentimiento: el anfitrión no lo contesta por `sala responder`. Lo da la persona con `sala consentir` en una terminal real (D48).
 
 `--cerrar` cierra la sesión hospedada si está libre y sin preguntas: cierra su stdin y espera a que salga. `--primer-plano` corre el anfitrión en la terminal actual, hasta que la sesión termine.
+
+## `sala consentir`
+
+```
+sala consentir <miembro> [--texto] [--sala <carpeta>]
+```
+
+Da el consentimiento que retuvo el anfitrión de una sesión hospedada (D48). Lo corrés vos, en una terminal interactiva: muestra el consentimiento con sus opciones numeradas, y vos tipeás el número en ese momento. Enter solo no contesta nada.
+
+- **Solo en una terminal.** Si `stdin` o `stdout` no son una terminal, se niega. El `bash` de las herramientas del agente no tiene terminal, así que el modelo de la sala no lo puede correr.
+- **Nunca como argumento.** `sala consentir core 1` se niega: un argumento lo puede escribir el modelo.
+- **El anfitrión vuelve a mirar.** Entrega solo un consentimiento abierto, con una de sus opciones, y solo por su acción `consent` con la marca de terminal. Lo demás se contesta con `sala responder`.
+- **Queda en el registro.** Cada intento queda en `.sala/ordenes.log`: lo entregado, con `consented`, y lo negado, con `refused`.
+
+El límite: el pipe no ve la terminal de quien le habla. Un proceso que le hable directo y mienta la marca pasa; lo que se frena es al modelo de la sala, que corre la CLI sin terminal. Un consentimiento no se contesta desde el teléfono ni desde el input de la sala.
 
 ## `sala veredicto`
 
