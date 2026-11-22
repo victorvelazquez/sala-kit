@@ -12,6 +12,7 @@ const TABLE = [
   '| --- | --- | --- | --- | --- | --- | --- |',
   '| E1 | Primera | Se ve | — | Completada |  | — |',
 ].join('\n');
+const tested = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'contrato', 'gentle-shell.json'), 'utf8'));
 const BLOCK = '<!-- sala-kit:miembro:inicio -->\nbloque\n<!-- sala-kit:miembro:fin -->\n';
 const GOOD = { 'docs/ROADMAP.md': `# Hoja de ruta\n\n${HEADER}\n${TABLE}\n`, 'AGENTS.md': `# Reglas\n\n${BLOCK}` };
 
@@ -173,9 +174,76 @@ test('--texto lists what fails with its order', (t) => {
   assert.equal(res.stdout, [
     'Sala prueba',
     'sala.json: cumple 1/1',
+    `Gentle Shell: probado con ${tested.gentleShell} (pi ${tested.pi}); instalado ${tested.gentleShell} (pi ${tested.pi})`,
     'core: cumple 6/7',
     '  agents-size: AGENTS.md tiene 17 KB; el máximo es 16 KB',
     '    orden: Recortá AGENTS.md por debajo de 16 KB: pasá a docs/ lo que no es una regla para agentes.',
     '',
   ].join('\n'));
+});
+
+// A live session in the feed of `agentDir` that publishes `schema`.
+function liveSession(agentDir, cwd, schema) {
+  const dir = path.join(agentDir, 'desktop', 'sessions');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 's1.json'), JSON.stringify({ schema, identity: { sessionId: 's1', cwd, pid: process.pid } }));
+}
+
+function contractSala(t) {
+  const dir = tempDir(t);
+  const core = memberRepo(dir, 'core');
+  pushFiles(core.work, GOOD);
+  writeSala(dir, salaConfig([member('core', core.work)]));
+  return { dir, core, agentDir: path.join(dir, 'agent') };
+}
+
+test('with the tested Gentle Shell and feed, sala revisar shows the contract without warnings', (t) => {
+  const { dir, core, agentDir } = contractSala(t);
+  liveSession(agentDir, core.work, tested.feed);
+  const env = { SALA_FEED_ROOTS: agentDir, FAKE_GENTLE_VERSION: tested.gentleShell, FAKE_PI_VERSION: tested.pi };
+
+  const res = runSala(dir, ['revisar'], env);
+
+  assert.equal(res.code, 0, res.stderr);
+  assert.deepEqual(JSON.parse(res.stdout).kit.gentleShell, {
+    tested: { gentleShell: tested.gentleShell, pi: tested.pi, feed: tested.feed },
+    installed: { gentleShell: tested.gentleShell, pi: tested.pi },
+    feeds: [tested.feed],
+    warnings: [],
+  });
+  const text = runSala(dir, ['revisar', '--texto'], env).stdout;
+  assert.ok(text.includes(`Gentle Shell: probado con ${tested.gentleShell} (pi ${tested.pi}); instalado ${tested.gentleShell} (pi ${tested.pi})\n`), text);
+  assert.ok(!text.includes('aviso'), text);
+});
+
+test('another Gentle Shell version or feed format is a warning, never a failure', (t) => {
+  const { dir, core, agentDir } = contractSala(t);
+  liveSession(agentDir, core.work, 'gentle-shell.desktop-feed/v2');
+  const env = { SALA_FEED_ROOTS: agentDir, FAKE_GENTLE_VERSION: '9.9.9', FAKE_PI_VERSION: tested.pi };
+
+  const res = runSala(dir, ['revisar'], env);
+
+  assert.equal(res.code, 0, res.stderr);
+  const out = JSON.parse(res.stdout);
+  assert.equal(out.members[0].ok, true);
+  assert.deepEqual(out.kit.gentleShell.feeds, ['gentle-shell.desktop-feed/v2']);
+  const warnings = [
+    `instalado gentle-shell 9.9.9 (pi ${tested.pi}); el kit se probó con ${tested.gentleShell} (pi ${tested.pi}): revisá qué cambió en Gentle Shell y, si el kit sigue andando, anotá la versión en contrato/gentle-shell.json`,
+    `una sesión viva publica gentle-shell.desktop-feed/v2; el kit se probó con ${tested.feed} y no lee otro formato`,
+  ];
+  assert.deepEqual(out.kit.gentleShell.warnings, warnings);
+  const text = runSala(dir, ['revisar', '--texto'], env).stdout;
+  for (const w of warnings) assert.ok(text.includes(`  aviso: ${w}\n`), text);
+});
+
+test('when gentle-shell --version cannot run, sala revisar says so and still passes', (t) => {
+  const { dir } = contractSala(t);
+
+  const res = runSala(dir, ['revisar'], { FAKE_GENTLE_VERSION: '' });
+
+  assert.equal(res.code, 0, res.stderr);
+  const contract = JSON.parse(res.stdout).kit.gentleShell;
+  assert.equal(contract.installed, null);
+  assert.deepEqual(contract.feeds, []);
+  assert.deepEqual(contract.warnings, ['no se pudo leer la versión de Gentle Shell (gentle-shell --version): gentle-shell: no se encontró']);
 });

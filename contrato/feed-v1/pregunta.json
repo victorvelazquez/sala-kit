@@ -1,0 +1,17 @@
+{
+  "schema": "gentle-shell.desktop-feed/v1",
+  "identity": { "sessionId": "muestra-pregunta", "cwd": "C:\\proyectos\\ejemplo", "realCwd": "C:\\proyectos\\ejemplo", "pid": 4245, "mode": "tui", "agentDir": "C:\\Users\\persona\\.gentle-shell\\agent" },
+  "context": { "percent": 55, "tokens": 110000, "window": 200000 },
+  "cost": { "total": 2.4 },
+  "activity": { "state": "idle", "label": "Idle" },
+  "pendingQuestion": {
+    "kind": "choice",
+    "toolCallId": "call-muestra-1",
+    "question": "¿Arranco la tarea?",
+    "terminalOnly": false,
+    "options": [
+      { "label": "Empezar", "description": "Arranca la tarea." },
+      { "label": "Cancelar", "description": "No arranca nada." }
+    ]
+  }
+}

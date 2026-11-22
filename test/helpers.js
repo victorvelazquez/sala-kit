@@ -66,9 +66,12 @@ function salaConfig(members) {
 }
 
 const FAKE_GH = path.join(__dirname, 'fixtures', 'fake-gh.js');
+const FAKE_GENTLE_VERSION = path.join(__dirname, 'fixtures', 'fake-gentle-version.js');
+const TESTED = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'contrato', 'gentle-shell.json'), 'utf8'));
 
 // The tests never call the real gh nor read the real feed or Gentle Shell: by default gh
-// answers with no open PRs, and the feed and the Gentle Shell home are folders that do not exist.
+// answers with no open PRs, the feed and the Gentle Shell home are folders that do not exist, and
+// gentle-shell --version answers the tested version of contrato/gentle-shell.json.
 function runSala(cwd, args, env = {}) {
   const res = spawnSync(process.execPath, [BIN, ...args], {
     cwd,
@@ -79,6 +82,9 @@ function runSala(cwd, args, env = {}) {
       FAKE_GH_OUT: '[]',
       SALA_FEED_ROOTS: path.join(cwd, 'sin-feed'),
       SALA_GENTLE_AGENT_DIR: path.join(cwd, 'sin-gentle'),
+      SALA_GENTLE_SHELL: FAKE_GENTLE_VERSION,
+      FAKE_GENTLE_VERSION: TESTED.gentleShell,
+      FAKE_PI_VERSION: TESTED.pi,
       ...env,
     },
   });

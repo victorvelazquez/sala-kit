@@ -1,0 +1,8 @@
+{
+  "schema": "gentle-shell.desktop-feed/v1",
+  "identity": { "sessionId": "muestra-trabajando", "cwd": "C:\\proyectos\\ejemplo\\src", "realCwd": "C:\\proyectos\\ejemplo\\src", "pid": 4243, "mode": "tui", "agentDir": "C:\\Users\\persona\\.gentle-shell\\agent" },
+  "context": { "percent": 48, "tokens": 96000, "window": 200000 },
+  "cost": { "total": 1.9 },
+  "activity": { "state": "working", "label": "Running bash" },
+  "pendingQuestion": null
+}
