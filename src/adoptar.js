@@ -12,6 +12,7 @@ const { reviewMember } = require('./revisar');
 const { enviar } = require('./enviar');
 const { oldBlocks, MEMBER_START, MEMBER_END } = require('./requisitos');
 const { template, readText, create } = require('./init');
+const { upgradeAgents } = require('./bloques');
 
 // A detail comes from the member's files: it is masked already, and cut so the order stays short.
 const MAX_DETAIL = 300;
@@ -120,34 +121,45 @@ function memberBlock() {
   return `${MEMBER_START}\n${template('bloque.md', 'miembro')}${MEMBER_END}\n`;
 }
 
-// Run inside the member, by its own session: it never overwrites (D41).
+// Run inside the member, by its own session (D41, D52): the member block and the old blocks
+// of the catalog are written only between their marks, and the member block goes at the end
+// when it is missing. Outside the marks not a byte changes.
 function unirse(dir) {
   if (fs.existsSync(path.join(dir, 'sala.json'))) throw new ConfigError(`${dir} es una sala: unirse no la convierte en miembro`);
-  const current = readText(path.join(dir, 'AGENTS.md'));
-  const report = { dir, created: [], skipped: [], warnings: [] };
+  const file = path.join(dir, 'AGENTS.md');
+  const current = readText(file);
+  const report = { dir, created: [], updated: [], skipped: [], warnings: [] };
   if (current === null) {
     create(dir, 'AGENTS.md', `# Reglas para agentes\n\n${memberBlock()}`, report);
     return report;
   }
-  const marks = [MEMBER_START, MEMBER_END].filter((m) => current.includes(m)).length;
-  if (marks === 2) {
-    report.skipped.push({ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro' });
+  const next = upgradeAgents(current, memberBlock(), [MEMBER_START, MEMBER_END]);
+  if (next.broken) {
+    const name = next.broken === 'miembro' ? 'del miembro' : next.broken;
+    throw new ConfigError(`AGENTS.md tiene las marcas del bloque ${name} repetidas, sin cerrar o al revés; arreglalas a mano y volvé a correr sala unirse`);
+  }
+  report.warnings = next.warnings;
+  if (next.updated.length === 0) {
+    report.skipped.push({ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro y los bloques al día' });
     return report;
   }
-  if (marks === 1) throw new ConfigError('AGENTS.md tiene una sola marca del bloque del miembro; arreglala a mano y volvé a correr sala unirse');
-  report.skipped.push({ file: 'AGENTS.md', reason: 'tiene reglas propias, sin las marcas del bloque' });
-  report.warnings.push(
-    'AGENTS.md ya tiene reglas propias y no tiene las marcas del bloque del miembro: el bloque quedó en ' +
-      'AGENTS.md.sugerido. Mostráselo a la persona con las reglas que choquen con él y, con su OK, pasalo ' +
-      'con sus marcas al final de AGENTS.md.',
-  );
-  create(dir, 'AGENTS.md.sugerido', memberBlock(), report);
+  // Written whole and renamed: a failure leaves the old file as it was.
+  const tmp = `${file}.sala-${process.pid}-${Date.now().toString(36)}`;
+  try {
+    fs.writeFileSync(tmp, next.text, { flag: 'wx' });
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    fs.rmSync(tmp, { force: true });
+    throw new ConfigError(`no se pudo escribir AGENTS.md: ${err.code || 'error'}`);
+  }
+  report.updated = next.updated;
   return report;
 }
 
 function unirseTexto(r) {
   const lines = [`Miembro en ${r.dir}`];
   for (const f of r.created) lines.push(`  creado      ${f}`);
+  for (const b of r.updated) lines.push(`  al día     AGENTS.md: bloque ${b}`);
   for (const s of r.skipped) lines.push(`  salteado    ${s.file}: ${s.reason}`);
   for (const w of r.warnings) lines.push(`  aviso: ${w}`);
   return `${lines.join('\n')}\n`;

@@ -356,10 +356,13 @@ sala unirse [--texto] [--sala <carpeta>]
   Se niega con una carpeta que no existe, que no es la raíz de un repositorio, que es una sala o que ya es miembro. También se niega si no puede deducir un dato o si el resultado no valida. En todos esos casos, `sala.json` queda como estaba. **Nunca escribe en el miembro:** solo avisa si le falta el bloque del miembro o si tiene `panel:entrega`.
 - `sala soltar` saca al miembro de `sala.json`, junto con sus tareas de `pinned`, sin tocar su repositorio.
 - `sala condiciones` revisa al miembro y le manda por `sala enviar`, con sus guardas y su registro, la orden de cumplir lo que falta: un requisito por línea con su orden. Si la base o el remoto fallan, no manda nada, porque eso se corrige en `sala.json`. Si cumple todo, tampoco.
-- `sala unirse` corre **en el miembro**, en una tarea propia: pone el bloque del miembro (`templates/miembro/bloque.md`) en su `AGENTS.md`. Nunca pisa:
-  - si `AGENTS.md` no existe, lo crea con el bloque;
-  - si ya tiene el bloque, no lo toca;
-  - si tiene reglas propias sin las marcas, deja el bloque en `AGENTS.md.sugerido` (D41).
+- `sala unirse` corre **en el miembro**, en una tarea propia: pone al día su `AGENTS.md`, siempre **solo entre las marcas** (D41, D52):
+  - si `AGENTS.md` no existe, lo crea con el bloque del miembro (`templates/miembro/bloque.md`);
+  - si no tiene el bloque del miembro, lo agrega al final; si lo tiene viejo, lo reemplaza entre sus marcas;
+  - los bloques viejos que escribimos antes de la sala, `panel:tareas`, `panel:entrega` y `orquestacion:ciclo`, pasan a su versión compatible (`templates/bloques/`: `v1.4`, `v1.1` y `v1.1`), que ya no dicen que `/flow-*` es lo único ni dejan sin efecto a la sala;
+  - fuera de las marcas no cambia ni un byte, y el archivo conserva sus finales de línea (LF o CRLF). Los demás bloques (`orquestacion:registro`, `panel:estado`) no se tocan;
+  - si unas marcas están repetidas, sin cerrar o al revés, no escribe nada y lo dice;
+  - correrlo de nuevo no cambia nada. Una regla propia que choque con la sala no se toca sola: la sesión del miembro le muestra a la persona el cambio exacto y lo aplica solo con su OK.
 
 ## `sala actualizar`
 

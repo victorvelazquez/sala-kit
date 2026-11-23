@@ -95,7 +95,7 @@ function agentsSize(text) {
 function memberBlock(text) {
   const ok = text !== null && text.includes(MEMBER_START) && text.includes(MEMBER_END);
   return result('member-block', ok, `AGENTS.md ${ok ? 'tiene' : 'no tiene'} el bloque del miembro`,
-    'En una tarea propia, corré `sala unirse` en la raíz del repositorio. Si deja AGENTS.md.sugerido, mostráselo a la persona con las reglas de AGENTS.md que choquen con el bloque y, con su OK, pasá el bloque con sus marcas al final de AGENTS.md y borrá el .sugerido. Entregalo con su PR.');
+    'En una tarea propia, corré `sala unirse` en la raíz del repositorio: pone el bloque del miembro y los bloques viejos al día, solo entre sus marcas. Si una regla de AGENTS.md fuera de las marcas choca con el bloque, mostrale a la persona el cambio exacto y aplicalo solo con su OK. Entregalo con su PR.');
 }
 
 function oldBlocks(text) {
