@@ -112,16 +112,16 @@ test('sala adoptar refuses what is not a repo to adopt, and leaves sala.json as 
   assert.equal(runSala(sala, ['adoptar']).code, 1, 'it needs a folder');
 });
 
-test('a member with the old panel:entrega block is adopted with a warning (D26)', (t) => {
+test('a member with old blocks is adopted with a warning (D52)', (t) => {
   const { dir, sala } = room(t);
   const core = clonedRepo(dir, 'core');
-  pushFiles(core.work, { 'AGENTS.md': `# Reglas\n\n<!-- panel:entrega:inicio -->\nSolo /flow-*.\n<!-- panel:entrega:fin -->\n${START}\nx\n${END}\n` });
+  pushFiles(core.work, { 'AGENTS.md': `# Reglas\n\n<!-- panel:entrega v1.0 -->\nSolo /flow-*.\n<!-- /panel:entrega -->\n${START}\nx\n${END}\n` });
 
   const res = runSala(sala, ['adoptar', core.work]);
 
   assert.equal(res.code, 0, res.stderr);
   assert.deepEqual(JSON.parse(res.stdout).warnings, [
-    'core: tiene el bloque viejo panel:entrega de repo-panel; hasta la fase 5 el miembro sigue entregando con /flow-* (D26)',
+    'core: AGENTS.md tiene bloques viejos: panel:entrega v1.0 (el kit trae v1.1); `sala condiciones core` le manda la orden de ponerse al día',
   ]);
 });
 
@@ -191,30 +191,45 @@ test('sala unirse puts the member block in AGENTS.md, adding it after the own ru
   assert.equal(read(sala, 'AGENTS.md'), saved);
 });
 
-test('sala revisar checks the member block and warns about panel:entrega', (t) => {
+test('sala revisar checks the member block and requires no old blocks (D52)', (t) => {
   const dir = tempDir(t);
-  const core = memberRepo(dir, 'core');
-  const web = memberRepo(dir, 'web');
-  pushFiles(core.work, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': `# Reglas\n\n${START}\nbloque\n${END}\n` });
-  pushFiles(web.work, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': '# Reglas\n<!-- panel:entrega:inicio -->\n' });
-  writeSala(dir, salaConfig([
-    { id: 'core', prefix: 'CORE', path: core.work, base: 'main' },
-    { id: 'web', prefix: 'WEB', path: web.work, base: 'main' },
-  ]));
+  const block = (name, version, body = 'x') => `<!-- ${name} ${version} -->\n${body}\n<!-- /${name} -->\n`;
+  const agents = {
+    core: `# Reglas\n\n${START}\nbloque\n${END}\n`,
+    web: `# Reglas\n${block('panel:entrega', 'v1.0')}${block('orquestacion:ciclo', 'v1.0')}`,
+    api: `# Reglas\n${block('panel:tareas', 'v2.0')}${block('panel:entrega', 'v1.1', 'editado')}${START}\nb\n${END}\n`,
+    bad: `# Reglas\n<!-- panel:tareas v1.3 -->\nsin fin\n${START}\nb\n${END}\n`,
+  };
+  const repos = Object.keys(agents).map((id) => {
+    const repo = memberRepo(dir, id);
+    pushFiles(repo.work, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': agents[id] });
+    return { id, prefix: id.toUpperCase(), path: repo.work, base: 'main' };
+  });
+  writeSala(dir, salaConfig(repos));
 
   const out = JSON.parse(runSala(dir, ['revisar']).stdout);
 
-  const [c, w] = out.members;
+  const [c, w, a, b] = out.members;
+  const req = (m, id) => m.requirements.find((r) => r.id === id);
   assert.equal(c.ok, true);
   assert.deepEqual(c.warnings, []);
-  assert.deepEqual(c.requirements.find((r) => r.id === 'member-block'), { id: 'member-block', ok: true, detail: 'AGENTS.md tiene el bloque del miembro', fix: null });
-  const block = w.requirements.find((r) => r.id === 'member-block');
-  assert.equal(block.ok, false);
-  assert.equal(block.detail, 'AGENTS.md no tiene el bloque del miembro');
-  assert.match(block.fix, /sala unirse/);
-  assert.deepEqual(w.warnings, ['tiene el bloque viejo panel:entrega de repo-panel; hasta la fase 5 el miembro sigue entregando con /flow-* (D26)']);
+  assert.deepEqual(req(c, 'member-block'), { id: 'member-block', ok: true, detail: 'AGENTS.md tiene el bloque del miembro', fix: null });
+  assert.deepEqual(req(c, 'old-blocks'), { id: 'old-blocks', ok: true, detail: 'AGENTS.md no tiene bloques viejos', fix: null });
+  assert.equal(req(w, 'member-block').ok, false);
+  assert.equal(req(w, 'member-block').detail, 'AGENTS.md no tiene el bloque del miembro');
+  assert.match(req(w, 'member-block').fix, /sala unirse/);
+  assert.equal(req(w, 'old-blocks').ok, false);
+  assert.equal(req(w, 'old-blocks').detail, 'AGENTS.md tiene bloques viejos: panel:entrega v1.0 (el kit trae v1.1), orquestacion:ciclo v1.0 (el kit trae v1.1)');
+  assert.match(req(w, 'old-blocks').fix, /sala unirse/);
+  assert.deepEqual(w.warnings, []);
+  // A block newer than the kit's, or current with an edited body, meets it; the newer one warns.
+  assert.equal(a.ok, true);
+  assert.equal(req(a, 'old-blocks').ok, true);
+  assert.deepEqual(a.warnings, ['AGENTS.md tiene panel:tareas v2.0, más nuevo que el v1.4 del kit']);
+  assert.equal(req(b, 'old-blocks').ok, false);
+  assert.equal(req(b, 'old-blocks').detail, 'AGENTS.md tiene las marcas del bloque panel:tareas repetidas, sin cerrar o al revés');
   const texto = runSala(dir, ['revisar', '--texto']).stdout;
-  assert.ok(texto.includes('  aviso: tiene el bloque viejo panel:entrega'));
+  assert.ok(texto.includes('  aviso: AGENTS.md tiene panel:tareas v2.0, más nuevo que el v1.4 del kit'));
 });
 
 // A room whose members core and web are real repos with a live session each.
@@ -229,7 +244,7 @@ function condicionesSala(t) {
 
 test('sala condiciones sends the member the order to meet what fails, and only that', async (t) => {
   const s = condicionesSala(t);
-  pushFiles(s.core, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': '# Reglas\n' });
+  pushFiles(s.core, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': '# Reglas\n<!-- panel:entrega v1.0 -->\nSolo /flow-*.\n<!-- /panel:entrega -->\n' });
   pushFiles(s.web, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': `# Reglas\n${START}\nb\n${END}\n` });
   s.session('c1', s.core);
   s.session('w1', s.web);
@@ -239,12 +254,13 @@ test('sala condiciones sends the member the order to meet what fails, and only t
   const res = await runAsync(s.dir, ['condiciones', 'core'], s.env);
 
   assert.equal(res.code, 0, res.stderr);
-  assert.deepEqual(JSON.parse(res.stdout), { member: 'core', failing: ['member-block'], sent: true, session: 'id-c1' });
+  assert.deepEqual(JSON.parse(res.stdout), { member: 'core', failing: ['member-block', 'old-blocks'], sent: true, session: 'id-c1' });
   assert.equal(seen.length, 1);
   assert.equal(seen[0].kind, 'send_prompt');
   const text = seen[0].args.text;
   assert.match(text, /^Ponete en condiciones para la sala/);
   assert.match(text, /member-block: AGENTS\.md no tiene el bloque del miembro/);
+  assert.ok(text.includes('- old-blocks: AGENTS.md tiene bloques viejos: panel:entrega v1.0 (el kit trae v1.1). '), text);
   assert.match(text, /sala unirse/);
   assert.ok(!/roadmap-table|agents-size|no-secrets/.test(text), 'what passes is not in the order');
   assert.deepEqual(s.log().map((l) => l.result), ['sending', 'sent']);

@@ -4,16 +4,13 @@
 // gets the files read from the remote base and returns { id, ok, detail, fix }.
 
 const { parseRoadmap } = require('./roadmap');
+const { blockVersions } = require('./bloques');
 
 const STATES = ['Pendiente', 'En curso', 'Completada', 'Bloqueada'];
 const HEADER = ['**Dónde está:**', '**Qué sigue:**', '**Qué lo bloquea:**'];
 const AGENTS_MAX_KB = 16;
 const MEMBER_START = '<!-- sala-kit:miembro:inicio -->';
 const MEMBER_END = '<!-- sala-kit:miembro:fin -->';
-// Blocks of older tools that a member may still carry: they warn, they never fail (D26).
-const OLD_BLOCKS = [
-  ['panel:entrega', 'tiene el bloque viejo panel:entrega de repo-panel; hasta la fase 5 el miembro sigue entregando con /flow-* (D26)'],
-];
 
 // Only the kind and the line are ever reported, never the matched text.
 const SECRETS = [
@@ -98,8 +95,31 @@ function memberBlock(text) {
     'En una tarea propia, corré `sala unirse` en la raíz del repositorio: pone el bloque del miembro y los bloques viejos al día, solo entre sus marcas. Si una regla de AGENTS.md fuera de las marcas choca con el bloque, mostrale a la persona el cambio exacto y aplicalo solo con su OK. Entregalo con su PR.');
 }
 
+// The old blocks we wrote before the sala (D52) fail until sala unirse brings them up to date.
+// A version comes from the member's file: controls and invisible characters go first (one
+// inside a secret would hide it from the mask, and a control would make the order unsendable),
+// then it is masked and cut.
+const version = (v) => mask(v.replace(/[\u0000-\u001f\u007f-\u009f\p{Cf}]/gu, '')).slice(0, 40);
+
+function staleDetail(text) {
+  const found = blockVersions(text, [MEMBER_START, MEMBER_END]);
+  if (found.broken) {
+    const name = found.broken === 'miembro' ? 'del miembro' : found.broken;
+    return `AGENTS.md tiene las marcas del bloque ${name} repetidas, sin cerrar o al revés`;
+  }
+  if (found.stale.length === 0) return null;
+  return `AGENTS.md tiene bloques viejos: ${found.stale.map((b) => `${b.name} ${version(b.version)} (el kit trae ${b.kit})`).join(', ')}`;
+}
+
+function noOldBlocks(text) {
+  const detail = staleDetail(text);
+  return result('old-blocks', detail === null, detail || 'AGENTS.md no tiene bloques viejos',
+    'En una tarea propia, corré `sala unirse` en la raíz del repositorio: pone panel:tareas, panel:entrega y orquestacion:ciclo en su versión compatible con la sala, solo entre sus marcas (si las marcas están rotas, arreglalas a mano antes). Si una regla de AGENTS.md fuera de las marcas choca con la sala, mostrale a la persona el cambio exacto, línea por línea, y aplicalo solo con su OK. Entregalo con su PR.');
+}
+
+// A block newer than the kit's meets the requirement and only warns.
 function oldBlocks(text) {
-  return text === null ? [] : OLD_BLOCKS.filter(([mark]) => text.includes(mark)).map(([, warning]) => warning);
+  return blockVersions(text).newer.map((b) => `AGENTS.md tiene ${b.name} ${version(b.version)}, más nuevo que el ${b.kit} del kit`);
 }
 
 // files: { roadmap, agents } as text, or null when the file is missing.
@@ -108,6 +128,7 @@ function memberRequirements(files, where) {
     ...roadmapChecks(files.roadmap, where),
     agentsSize(files.agents),
     memberBlock(files.agents),
+    noOldBlocks(files.agents),
     noSecrets([['AGENTS.md', files.agents]]),
   ];
 }
@@ -115,9 +136,10 @@ function memberRequirements(files, where) {
 module.exports = {
   memberRequirements,
   oldBlocks,
+  staleDetail,
   noSecrets,
   mask,
   MEMBER_START,
   MEMBER_END,
-  REQUIREMENT_IDS: ['base-remote', 'roadmap-table', 'roadmap-header', 'roadmap-states', 'agents-size', 'member-block', 'no-secrets'],
+  REQUIREMENT_IDS: ['base-remote', 'roadmap-table', 'roadmap-header', 'roadmap-states', 'agents-size', 'member-block', 'old-blocks', 'no-secrets'],
 };

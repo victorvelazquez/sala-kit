@@ -50,7 +50,7 @@ test('a member that meets every requirement passes them all', (t) => {
   assert.equal(out.members[0].ok, true);
   assert.deepEqual(ids(out.members[0].requirements), [
     ['base-remote', true], ['roadmap-table', true], ['roadmap-header', true],
-    ['roadmap-states', true], ['agents-size', true], ['member-block', true], ['no-secrets', true],
+    ['roadmap-states', true], ['agents-size', true], ['member-block', true], ['old-blocks', true], ['no-secrets', true],
   ]);
 });
 
@@ -138,7 +138,7 @@ test('a base missing on the remote fails, and what needs it is left unchecked', 
 
   assert.equal(m.ok, false);
   assert.match(m.requirements[0].detail, /^no se pudo traer origin\/develop: /);
-  assert.deepEqual(m.requirements.slice(1).map((r) => [r.ok, r.detail]), Array(6).fill(
+  assert.deepEqual(m.requirements.slice(1).map((r) => [r.ok, r.detail]), Array(7).fill(
     [null, 'sin comprobar: no se pudo leer origin/develop'],
   ));
 });
@@ -175,7 +175,7 @@ test('--texto lists what fails with its order', (t) => {
     'Sala prueba',
     'sala.json: cumple 1/1',
     `Gentle Shell: probado con ${tested.gentleShell} (pi ${tested.pi}); instalado ${tested.gentleShell} (pi ${tested.pi})`,
-    'core: cumple 6/7',
+    'core: cumple 7/8',
     '  agents-size: AGENTS.md tiene 17 KB; el máximo es 16 KB',
     '    orden: Recortá AGENTS.md por debajo de 16 KB: pasá a docs/ lo que no es una regla para agentes.',
     '',
