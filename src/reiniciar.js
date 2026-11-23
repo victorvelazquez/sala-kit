@@ -7,7 +7,7 @@
 
 const { readFeed, sendAction, feedRoots } = require('./feed');
 const { LAUNCHERS } = require('./launcher');
-const { findMember, SalaError, openMember, readState, takeLock, liveSessions } = require('./abrir');
+const { findMember, SalaError, openMember, adoptSession, readState, takeLock, liveSessions } = require('./abrir');
 const { onlySession, paused, logOrder } = require('./enviar');
 const { veredicto } = require('./veredicto');
 const { mask } = require('./requisitos');
@@ -49,8 +49,20 @@ async function waitUntilGone(member, sessionId, timeoutMs) {
 async function reiniciar(config, salaDir, id) {
   const member = findMember(config, id);
   if (paused(salaDir)) throw new SalaError('la sala está en pausa (.sala/PAUSA): no cierra ni abre sesiones');
-  const record = readState(salaDir).members[id];
+  let record = readState(salaDir).members[id];
   if (!ownTerminal(record)) throw new SalaError(`${id}: la sala no abrió una terminal de Orca para este miembro; no cierra nada`);
+  // A first abrir that gave up left no session: it is taken only by the rule of adoptSession.
+  if (record.session === null) {
+    const release = takeLock(salaDir);
+    let refused;
+    try {
+      ({ refused } = await adoptSession(salaDir, member));
+    } finally {
+      release();
+    }
+    if (refused) throw new SalaError(`${id}: la sesión de la terminal ${record.handle} no está anotada y la sala no la toma como suya (${refused}); no la cierra`);
+    record = readState(salaDir).members[id];
+  }
   checkClosable(config, member, record);
   // The task is merged and nothing is left in the tree: the member is back on its clean base.
   const gate = await veredicto(config, id, 'base');

@@ -101,11 +101,27 @@ async function abrir(config, salaDir, id) {
   }
 }
 
+// A session that showed up after abrir gave up (SK17) is the sala's own only when the Orca
+// terminal it recorded is still open and it is the member's only live session.
+async function adoptSession(salaDir, member, sessions = liveSessions(member)) {
+  const record = readState(salaDir).members[member.id];
+  if (!record || record.launcher !== 'orca' || record.session !== null || typeof record.handle !== 'string') return {};
+  if (sessions.length !== 1) return { refused: `el miembro tiene ${sessions.length} sesiones vivas` };
+  const open = await LAUNCHERS.orca.terminals();
+  if (!open) return { refused: 'Orca no responde' };
+  if (!open.includes(record.handle)) return { refused: `la terminal ${record.handle} ya no está en Orca` };
+  saveRecord(salaDir, member.id, { ...record, session: sessions[0].id });
+  return { adopted: record.handle };
+}
+
 // `chosen` forces a launcher: a restart opens again where the sala closed (sala reiniciar).
 async function openMember(config, salaDir, member, chosen = null) {
   const { id } = member;
-  const [live] = liveSessions(member);
-  if (live) return { member: id, action: 'reused', session: live.id };
+  const sessions = liveSessions(member);
+  if (sessions.length > 0) {
+    const { adopted, refused } = await adoptSession(salaDir, member, sessions);
+    return { member: id, action: 'reused', session: sessions[0].id, ...(adopted ? { adopted } : {}), ...(refused ? { refused } : {}) };
+  }
   // An Orca terminal from an abrir that timed out may still be starting: never orphan it.
   const previous = readState(salaDir).members[id];
   if (previous && previous.launcher === 'orca' && previous.session === null) {
@@ -132,7 +148,11 @@ async function openMember(config, salaDir, member, chosen = null) {
 }
 
 function abrirTexto(r) {
-  if (r.action === 'reused') return `${r.member}: ya tiene una sesión viva (${r.session}); no se abrió otra\n`;
+  if (r.action === 'reused') {
+    const own = r.adopted ? `; es la de la terminal ${r.adopted} que abrió la sala, y quedó anotada`
+      : r.refused ? `; la sala no la anota como suya: ${r.refused}` : '';
+    return `${r.member}: ya tiene una sesión viva (${r.session}); no se abrió otra${own}\n`;
+  }
   const where = r.handle ? `${r.launcher} (${r.handle})` : `${r.launcher}, pestaña «${r.title}»`;
   return `${r.member}: abierta en ${where}, sesión ${r.session}\n`;
 }
@@ -185,5 +205,5 @@ function retomarTexto(result) {
 }
 
 module.exports = {
-  abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, findMember, SalaError, openMember, readState, takeLock, liveSessions,
+  abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, findMember, SalaError, openMember, adoptSession, readState, takeLock, liveSessions,
 };

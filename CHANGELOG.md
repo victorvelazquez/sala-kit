@@ -15,6 +15,7 @@ La primera versión. `sala.json` tiene `schema: 1`.
   - poner la sala al día: `actualizar`;
   - frenar las órdenes: `pausar` y `seguir`.
 - **Los comandos de Gentle Shell:** `/sala-plan`, `/sala-estado`, `/sala-orden`, `/sala-entregar`, `/sala-seguir`, `/sala-fusionar`, `/sala-adoptar`, `/sala-soltar`, `/sala-pausar` y `/sala-novedades`, que lee qué cambió en Gentle Shell y en pi desde la versión revisada y solo propone. El bloque de la sala nombra `/sala-pausar`.
+- **La sesión que aparece tarde** (SK17): si Gentle Shell publica la sesión después de que `sala abrir` dejó de esperar, `sala abrir` y `sala reiniciar` la anotan como de la sala cuando la terminal de Orca sigue abierta y es la única sesión del miembro. Antes, `sala fusionar` se frenaba en `restart`.
 - **La entrega de los miembros** (SK16): `/miembro-entregar` le dice al agente de entrega que los ordinales se cuentan desde 0, que el token es solo el campo `payloadB64url` y que va directo en el comando. Antes, la primera entrega real gastó su corrección y quedó sin commit.
 - **La respuesta del miembro**: `sala respuesta` trae su último mensaje, leído de su archivo de sesión y con los secretos enmascarados, y `/sala-orden` la muestra al terminar la orden.
 - **Los bloques administrados** de la sala y del miembro, en `templates/`.

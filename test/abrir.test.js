@@ -188,6 +188,49 @@ test('sala abrir does not orphan an Orca terminal still open from an abrir that 
   assert.equal(fs.readFileSync(s.stateFile, 'utf8'), before);
 });
 
+test('sala abrir records a late session of the Orca terminal it opened only when it is the member\'s only one', (t) => {
+  const s = setup(t, { launcher: 'orca' });
+  assert.equal(runSala(s.dir, ['abrir', 'core'], { ...s.env, FAKE_SNAPSHOT: '', SALA_OPEN_TIMEOUT_MS: '300' }).code, 1);
+  const before = fs.readFileSync(s.stateFile, 'utf8');
+  const reused = 'core: ya tiene una sesión viva (vieja); no se abrió otra';
+  const run = (env) => runSala(s.dir, ['abrir', 'core', '--texto'], { ...s.env, ...env });
+
+  // Someone else's session is never taken for the sala's: the record stays as it was.
+  liveSnapshot(s.agentDir, s.work);
+  const sessions = path.join(s.agentDir, 'desktop', 'sessions');
+  const other = JSON.parse(fs.readFileSync(path.join(sessions, 'vieja.json'), 'utf8'));
+  other.identity.sessionId = 'otra';
+  fs.writeFileSync(path.join(sessions, 'otra.json'), JSON.stringify(other));
+  const two = run({ FAKE_ORCA_TERMINALS: 'term_fake1' });
+  assert.equal(two.code, 0, two.stderr);
+  assert.match(two.stdout, /; la sala no la anota como suya: el miembro tiene 2 sesiones vivas\n$/);
+  fs.rmSync(path.join(sessions, 'otra.json'));
+  for (const [env, why] of [
+    [{ FAKE_ORCA_TERMINALS: '' }, 'la terminal term_fake1 ya no está en Orca'],
+    [{ FAKE_ORCA_TERMINALS: 'term_fake1', FAKE_ORCA_DOWN: '1' }, 'Orca no responde'],
+  ]) {
+    const res = run(env);
+    assert.equal(res.code, 0, res.stderr);
+    assert.equal(res.stdout, `${reused}; la sala no la anota como suya: ${why}\n`);
+  }
+  assert.equal(fs.readFileSync(s.stateFile, 'utf8'), before);
+
+  const adopted = runSala(s.dir, ['abrir', 'core'], { ...s.env, FAKE_ORCA_TERMINALS: 'term_fake1' });
+
+  assert.equal(adopted.code, 0, adopted.stderr);
+  assert.deepEqual(JSON.parse(adopted.stdout), { member: 'core', action: 'reused', session: 'vieja', adopted: 'term_fake1' });
+  assert.deepEqual(s.state().members.core, { ...JSON.parse(before).members.core, session: 'vieja' });
+  assert.equal(s.calls().filter((c) => c.args[1] === 'create').length, 1);
+  const again = run({ FAKE_ORCA_TERMINALS: 'term_fake1' });
+  assert.equal(again.stdout, `${reused}\n`);
+
+  // A Windows Terminal tab has no handle to check: its record is never completed.
+  const wt = { schema: 1, members: { core: { launcher: 'wt', handle: null, title: 'sala-core', session: null, openedAt: 'x' } } };
+  fs.writeFileSync(s.stateFile, JSON.stringify(wt));
+  assert.equal(run({ FAKE_ORCA_TERMINALS: 'term_fake1' }).stdout, `${reused}\n`);
+  assert.deepEqual(s.state(), wt);
+});
+
 test('sala abrir refuses an unknown member, a missing folder or an unreadable state, launching nothing', (t) => {
   const s = setup(t, { launcher: 'orca' });
 
