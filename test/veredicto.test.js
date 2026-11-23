@@ -19,6 +19,13 @@ function deliveredMember(dir, estado) {
   return core;
 }
 
+// The lines sala enviar leaves in .sala/ordenes.log.
+function logOrders(dir, entries) {
+  fs.mkdirSync(path.join(dir, '.sala'), { recursive: true });
+  const lines = entries.map(([member, text, result = 'sent', extra = {}]) => JSON.stringify({ at: '2026-11-23T10:00:00.000Z', member, session: 'id-c1', text, result, ...extra }));
+  fs.appendFileSync(path.join(dir, '.sala', 'ordenes.log'), `${lines.join('\n')}\n`);
+}
+
 function pr(conclusion, title = 'feat: entrega (E1)') {
   return JSON.stringify([
     { number: 7, title: 'otra cosa (E9)', headRefName: 'otra', isDraft: false, statusCheckRollup: [] },
@@ -54,6 +61,8 @@ test('after a delivery the verdict gives branch, commit, PR, CI and the task row
       { id: 'pr', ok: true, detail: 'PR #3 abierto' },
       { id: 'ci', ok: true, detail: 'CI en verde' },
       { id: 'task', ok: true, detail: 'la fila E1 dice Completada' },
+      // Without an order in the log there is nothing to compare: it warns and does not fail (SK32b).
+      { id: 'order', ok: true, detail: 'aviso: la sala no le anotó a core una orden /miembro-tarea con ID; no se compara' },
     ],
   });
 
@@ -62,6 +71,38 @@ test('after a delivery the verdict gives branch, commit, PR, CI and the task row
     assert.deepEqual({ ...bridge, command: 'miembro-entregar' }, out, alias);
     assert.equal(bridge.command, alias.replace('/', ''));
   }
+});
+
+test('a delivery of a task the sala did not ask for fails; only the last task order sent to that member counts (SK32b)', (t) => {
+  const dir = tempDir(t);
+  deliveredMember(dir, 'Completada');
+  const order = () => JSON.parse(runSala(dir, ['veredicto', 'core', 'entrega'], { FAKE_GH_OUT: pr('SUCCESS') }).stdout);
+
+  logOrders(dir, [['core', '/miembro-tarea E2']]);
+  const wrong = order();
+  assert.equal(wrong.ok, false);
+  assert.deepEqual(wrong.checks.filter((c) => !c.ok), [{ id: 'order', ok: false, detail: 'el PR es de E1, pero la sala le pidió E2' }]);
+
+  // A refused order, an order to another member, an answer and an order without an ID change nothing.
+  logOrders(dir, [
+    ['core', '/miembro-tarea E1', 'refused'],
+    ['web', '/miembro-tarea E1'],
+    ['core', '/miembro-tarea E1', 'sent', { question: 'q1' }],
+    ['core', '/miembro-base'],
+  ]);
+  assert.deepEqual(order().checks.at(-1), { id: 'order', ok: false, detail: 'el PR es de E1, pero la sala le pidió E2' });
+
+  // The member prefix and the case do not matter.
+  logOrders(dir, [['core', '/Miembro-Tarea core-e1']]);
+  const right = order();
+  assert.equal(right.ok, true);
+  assert.deepEqual(right.checks.at(-1), { id: 'order', ok: true, detail: 'la sala le pidió core-e1' });
+
+  // A later order without an ID leaves the sala not knowing which task it asked for: it warns.
+  logOrders(dir, [['core', '/miembro-tarea']]);
+  const unknown = order();
+  assert.equal(unknown.ok, true);
+  assert.deepEqual(unknown.checks.at(-1), { id: 'order', ok: true, detail: 'aviso: la sala no le anotó a core una orden /miembro-tarea con ID; no se compara' });
 });
 
 test('a delivery with red CI, an unmarked row and an unpushed commit fails and says why', (t) => {

@@ -4,7 +4,9 @@
 // Read-only: it never changes the member.
 
 const fs = require('node:fs');
+const path = require('node:path');
 const { run, redact, gitError } = require('./run');
+const { TASK_ORDER, namedRows } = require('./enviar');
 const { parseRoadmap } = require('./roadmap');
 const { openPrs } = require('./estado');
 const { findMember, SalaError } = require('./abrir');
@@ -108,6 +110,50 @@ async function taskCheck(member, git, pr) {
   return { task, check: check('task', done, done ? `la fila ${task} dice Completada` : `la fila ${task} dice ${redact(row.estado)}, no Completada`) };
 }
 
+// The task the sala asked this member for last: the last `/miembro-tarea <ID>` that sala enviar
+// (or its host) delivered to it, read from .sala/ordenes.log. Null when there is none, or the last
+// one named no row: then the sala does not know which task it asked for.
+function orderedTask(salaDir, member) {
+  let lines;
+  try {
+    lines = fs.readFileSync(path.join(salaDir, '.sala', 'ordenes.log'), 'utf8').split('\n');
+  } catch {
+    return null;
+  }
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    let entry;
+    try {
+      entry = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    // An answer to a question carries its question; only orders count.
+    if (!entry || entry.member !== member.id || entry.result !== 'sent' || entry.question || typeof entry.text !== 'string') continue;
+    const match = TASK_ORDER.exec(entry.text.replace(/\p{Cf}/gu, '').trim());
+    if (!match) continue;
+    if (!match[1]) return null;
+    return { shown: redact(match[1]).replace(UNSAFE, '?').slice(0, 64), rows: namedRows(match[1], member.prefix) };
+  }
+  return null;
+}
+
+// Why a delivery of `task` is not the task the sala asked for, or null when it is or nobody knows.
+function orderMismatch(salaDir, member, task) {
+  const ordered = orderedTask(salaDir, member);
+  if (!ordered || !task) return null;
+  const rows = namedRows(task, member.prefix);
+  if (rows.length > 0 && rows.every((r) => ordered.rows.includes(r))) return null;
+  return `es de ${redact(task).replace(UNSAFE, '?')}, pero la sala le pidió ${ordered.shown}`;
+}
+
+function orderCheck(salaDir, member, task) {
+  if (!task) return check('order', true, 'sin tarea en el PR, no hay orden que comparar');
+  const ordered = orderedTask(salaDir, member);
+  if (!ordered) return check('order', true, `aviso: la sala no le anotó a ${member.id} una orden /miembro-tarea con ID; no se compara`);
+  const why = orderMismatch(salaDir, member, task);
+  return why ? check('order', false, `el PR ${why}`) : check('order', true, `la sala le pidió ${ordered.shown}`);
+}
+
 const CI = {
   passing: [true, 'CI en verde'],
   none: [true, 'sin comprobaciones de CI'],
@@ -115,7 +161,7 @@ const CI = {
   failing: [false, 'CI en rojo'],
 };
 
-async function deliveryVerdict(member, git, branch) {
+async function deliveryVerdict(member, git, branch, salaDir) {
   const { base, remote } = member;
   let onBranch = check('branch', true, `en la rama ${branch}`);
   if (!branch) onBranch = check('branch', false, 'HEAD suelto, no está en la rama de la entrega');
@@ -144,10 +190,12 @@ async function deliveryVerdict(member, git, branch) {
   const ci = pr ? check('ci', ...CI[pr.ci]) : check('ci', false, 'sin PR, no hay CI que mirar');
   const task = await taskCheck(member, git, pr);
 
-  return { branch, commit, pr, task: task.task, checks: [onBranch, tree.clean, pushed, prCheck, ci, task.check] };
+  const order = orderCheck(salaDir, member, task.task);
+
+  return { branch, commit, pr, task: task.task, checks: [onBranch, tree.clean, pushed, prCheck, ci, task.check, order] };
 }
 
-async function veredicto(config, memberId, text) {
+async function veredicto(config, memberId, text, salaDir) {
   const member = findMember(config, memberId);
   const command = commandName(text);
   const rule = RULES[command];
@@ -156,7 +204,7 @@ async function veredicto(config, memberId, text) {
   if (!fs.existsSync(member.path)) throw new SalaError(`${member.id}: la carpeta no existe: ${member.path}`);
   const git = (...args) => run('git', args, { cwd: member.path });
   const branch = (await git('branch', '--show-current')).stdout.trim() || null;
-  const result = rule === 'entrega' ? await deliveryVerdict(member, git, branch) : await baseVerdict(member, git, branch);
+  const result = rule === 'entrega' ? await deliveryVerdict(member, git, branch, salaDir) : await baseVerdict(member, git, branch);
   const { checks, ...facts } = result;
   return {
     schema: OUTPUT_SCHEMA,
@@ -177,4 +225,4 @@ function veredictoTexto(result) {
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { veredicto, veredictoTexto, RULES };
+module.exports = { veredicto, veredictoTexto, orderMismatch, TITLE_ID, RULES };

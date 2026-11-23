@@ -194,7 +194,7 @@ const COMMANDS = {
     texto: (result, opts) => (opts.retomar ? retomarTexto(result) : estadoTexto(result)),
   },
   plan: { run: (config) => plan(config), texto: planTexto },
-  proximo: { run: (config) => proximo(config), texto: proximoTexto },
+  proximo: { run: (config, opts) => proximo(config, opts.sala), texto: proximoTexto },
   agendar: { run: (config, opts) => agendar(config, opts.sala, opts.hora), texto: agendarTexto },
   revisar: { run: (config, opts) => revisar(config, opts.sala, opts.member), texto: revisarTexto, member: true },
   abrir: { run: (config, opts) => abrir(config, opts.sala, opts.member), texto: abrirTexto, member: 'required' },
@@ -202,7 +202,7 @@ const COMMANDS = {
   enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: 'una orden' },
   esperar: { run: (config, opts) => esperar(config, opts.sala, opts.member), texto: esperarTexto, member: 'required' },
   respuesta: { run: (config, opts) => respuesta(config, opts.member), texto: respuestaTexto, member: 'required' },
-  veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
+  veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order, opts.sala), texto: veredictoTexto, member: 'required', order: 'un comando' },
   preguntas: { run: (config, opts) => preguntas(config, opts.sala), texto: preguntasTexto },
   hospedar: {
     run: (config, opts) => hospedar(config, opts.sala, opts.member, { cerrar: opts.cerrar, primerPlano: opts.primerPlano }),

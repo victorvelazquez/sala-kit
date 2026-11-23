@@ -243,4 +243,4 @@ function respuestaTexto(r) {
   return `${r.member}: última respuesta de la sesión ${r.session} (${r.at || 'sin hora'})\n\n${r.text}${clipped}\n`;
 }
 
-module.exports = { enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto, logOrder, guard, paused, onlySession, unreadable };
+module.exports = { TASK_ORDER, namedRows, enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto, logOrder, guard, paused, onlySession, unreadable };

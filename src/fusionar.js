@@ -12,7 +12,7 @@ const { ghCommand } = require('./estado');
 const { findMember, SalaError, readState } = require('./abrir');
 const { reiniciar, ownTerminal } = require('./reiniciar');
 const { enviar, esperar, guard, paused } = require('./enviar');
-const { veredicto } = require('./veredicto');
+const { veredicto, orderMismatch, TITLE_ID } = require('./veredicto');
 const { plan, readRoadmap } = require('./plan');
 const { mask } = require('./requisitos');
 
@@ -71,6 +71,10 @@ async function checkPr(ctx) {
   if (pr.state !== 'OPEN') throw no(`está ${redact(pr.state)}, no abierto`);
   if (pr.isDraft) throw no('es un borrador');
   if (pr.baseRefName !== member.base) throw no(`va a ${redact(pr.baseRefName)}, no a la base ${member.base}`);
+  // Only the task the sala asked this member for is merged (SK32b).
+  const task = TITLE_ID.exec(String(pr.title));
+  const why = task ? orderMismatch(ctx.salaDir, member, task[1].trim()) : null;
+  if (why) throw no(why);
   const ci = ciBlock(pr.statusCheckRollup);
   if (ci) throw no(ci);
   if (pr.mergeable === 'CONFLICTING') throw no(`tiene conflictos con ${member.base}`);
