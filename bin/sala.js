@@ -5,6 +5,7 @@ const path = require('node:path');
 const { loadConfig, ConfigError } = require('../src/config');
 const { estado, estadoTexto } = require('../src/estado');
 const { plan, planTexto } = require('../src/plan');
+const { proximo, proximoTexto } = require('../src/proximo');
 const { revisar, revisarTexto } = require('../src/revisar');
 const { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaError } = require('../src/abrir');
 const { enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto } = require('../src/enviar');
@@ -49,6 +50,10 @@ Uso:
   sala plan [--texto] [--sala <carpeta>]     por miembro: lo que está en curso, la siguiente tarea lista
                                              y lo que espera, con el motivo; y la cola de la sala
                                              en olas que pueden correr en paralelo
+  sala proximo [--texto] [--sala <carpeta>]  el paso siguiente de cada miembro y el comando exacto:
+                                             abrir su sesión, contestar, esperar, entregar, fusionar
+                                             su PR, esperar el CI, volver a la base, pedir su tarea
+                                             siguiente o nada; solo lee, nunca manda nada
   sala agendar [--hora <HH:MM>] [--texto] [--sala <carpeta>]
                                              imprime la orden de PowerShell que programa en Windows
                                              sala plan todos los días (08:00 por defecto), con su
@@ -189,6 +194,7 @@ const COMMANDS = {
     texto: (result, opts) => (opts.retomar ? retomarTexto(result) : estadoTexto(result)),
   },
   plan: { run: (config) => plan(config), texto: planTexto },
+  proximo: { run: (config) => proximo(config), texto: proximoTexto },
   agendar: { run: (config, opts) => agendar(config, opts.sala, opts.hora), texto: agendarTexto },
   revisar: { run: (config, opts) => revisar(config, opts.sala, opts.member), texto: revisarTexto, member: true },
   abrir: { run: (config, opts) => abrir(config, opts.sala, opts.member), texto: abrirTexto, member: 'required' },

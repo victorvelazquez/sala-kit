@@ -275,6 +275,30 @@ La pausa y la sesión se vuelven a mirar justo antes de cerrar, con el candado d
 
 `sala modelo` le aplica a la sesión de la sala el perfil de `options.roomModel` con la acción `apply_profile` del feed, solo para esa sesión y sin tocar la configuración global (D28). La sesión de la sala es la única sesión viva en su carpeta que no es de un miembro. Si el perfil pide una confirmación (por ejemplo, porque sube el modo de permisos), la sala no la da: la persona lo aplica con `/gentle:profiles` en la terminal de la sala. La acción queda en `.sala/ordenes.log`.
 
+## `sala proximo`
+
+```
+sala proximo [--texto] [--sala <carpeta>]
+```
+
+El paso siguiente de cada miembro, con el comando exacto, para contestar «¿qué sigue?» o «¿por qué no avanzamos?» sin leer nada más (SK32). Solo lee: nunca manda nada. Lo decide con lo que el kit ya sabe (git, gh, el feed y el plan), sin modelo, en este orden, y gana el primer caso que se cumple:
+
+| Paso | Cuándo | Comando |
+|---|---|---|
+| `abrir` | no tiene una sesión viva | `sala abrir <miembro>` |
+| `una-sesion` | tiene más de una sesión viva | — |
+| `contestar` | tiene una pregunta abierta, o la sesión está bloqueada | `sala preguntas` o `sala mostrar <miembro>` |
+| `esperar` | está trabajando o espera a sus agentes | `sala esperar <miembro>` |
+| `entregar` | está libre con cambios sin commit, o en su rama sin PR abierto | `/sala-entregar <miembro>` |
+| `fusionar` | el PR de su rama tiene el CI en verde (o no tiene CI) | `/sala-fusionar <miembro> <n>`, con el OK de la persona |
+| `ci` | el PR de su rama tiene el CI corriendo o en rojo, o es un borrador | — |
+| `base` | su rama ya se fusionó, o la base está atrás del remoto | `sala enviar <miembro> /miembro-base` |
+| `tarea` | está en su base, limpia y al día, con una tarea lista en el plan | `/sala-seguir <miembro>` |
+| `libre` | no tiene una tarea lista | — |
+| `revisar` | algo que la sala no resuelve sola: la carpeta, un HEAD suelto, un stash, commits sin subir o un remoto que no responde | — |
+
+Solo cuenta el PR de la rama actual del miembro: el de otra rama, como el de un bot de versiones, no lo confunde.
+
 ## `sala plan`
 
 ```
