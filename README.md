@@ -328,11 +328,12 @@ Revisa el catálogo de requisitos en cada miembro, o solo en `miembro` (su `id`)
 | `roadmap-states` | Cada `Estado` es `Pendiente`, `En curso`, `Completada` o `Bloqueada` |
 | `agents-size` | `AGENTS.md` existe y pesa 16 KB o menos |
 | `member-block` | `AGENTS.md` tiene el bloque del miembro, entre `<!-- sala-kit:miembro:inicio -->` y `<!-- sala-kit:miembro:fin -->` |
+| `old-blocks` | `AGENTS.md` no tiene `panel:tareas`, `panel:entrega` ni `orquestacion:ciclo` en una versión más vieja que la del kit, ni con sus marcas rotas (D52); `sala unirse` los pone al día |
 | `no-secrets` | `AGENTS.md` sin secretos; también se revisa el `sala.json` de la sala, en `salaJson` |
 
 Un secreto (token de GitHub, clave `sk-`, clave de AWS, clave privada o URL con usuario y clave) se informa con su tipo, el archivo y la línea; **nunca** se muestra el texto encontrado. Un `miembro` que no está en `sala.json` es un error.
 
-Cada miembro trae también `warnings`: avisos que no hacen fallar, como el bloque viejo `panel:entrega` de repo-panel, que sigue hasta la fase 5 (D26).
+Cada miembro trae también `warnings`: avisos que no hacen fallar, como un bloque del catálogo en una versión más nueva que la del kit, que cumple `old-blocks` y no se toca.
 
 `kit.agents` dice cómo está en esta máquina cada agente del kit: `al-dia`, `falta`, `vieja`, `editada`, `ajena` o `sin-gentle-shell` (no hay `~/.gentle-shell/agent`: no avisa), con la orden que lo arregla (`sala instalar` o `sala instalar --forzar`). También es un aviso: no hace fallar y `sala revisar` nunca instala nada.
 

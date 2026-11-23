@@ -128,3 +128,45 @@ test('sala unirse keeps the line end after the member end mark as it was', (t) =
     assert.deepEqual(JSON.parse(runSala(dir, ['unirse']).stdout).updated, []);
   }
 });
+
+test('blockVersions agrees with sala unirse on what is broken, nested, old and newer', () => {
+  const { blockVersions } = require('../src/bloques');
+  const { memberRequirements } = require('../src/requisitos');
+  const b = (n, v, inner = 'x\n') => `<!-- ${n} ${v} -->\n${inner}<!-- /${n} -->\n`;
+  assert.deepEqual(blockVersions(b('panel:tareas', 'v1.4.0')).stale.map((x) => x.version), ['v1.4.0']);
+  assert.deepEqual(blockVersions(b('panel:entrega', 'v1.10')).newer.map((x) => x.name), ['panel:entrega']);
+  assert.equal(blockVersions('<!-- /panel:entrega -->\n').broken, 'panel:entrega');
+  assert.equal(blockVersions('<!-- panel:tareas -->\nx\n<!-- /panel:tareas -->\n').broken, 'panel:tareas');
+  assert.equal(blockVersions(b('panel:tareas', 'v1.4', b('panel:entrega', 'v1.1'))).broken, 'panel:entrega');
+  assert.deepEqual(blockVersions(null), { broken: null, stale: [], newer: [] });
+  // A version is the member's text: controls go before masking, so the order can still be sent.
+  const old = memberRequirements({ roadmap: null, agents: b('panel:tareas', 'v1\u001b[31m\u202e.3') }, 'o/m').find((r) => r.id === 'old-blocks');
+  assert.equal(old.detail, 'AGENTS.md tiene bloques viejos: panel:tareas v1[31m.3 (el kit trae v1.4)');
+});
+
+test('old-blocks masks a secret split by an invisible and builds a sendable order', () => {
+  const { memberRequirements } = require('../src/requisitos');
+  const { unreadable } = require('../src/enviar');
+  const v = `v1-ghp_${'A'.repeat(12)}\u200b${'B'.repeat(24)}\u0007`;
+  const r = memberRequirements({ roadmap: null, agents: `<!-- panel:tareas ${v} -->\nx\n<!-- /panel:tareas -->\n` }, 'o/m').find((x) => x.id === 'old-blocks');
+  assert.equal(r.detail, 'AGENTS.md tiene bloques viejos: panel:tareas v1-[token de GitHub] (el kit trae v1.4)');
+  assert.equal(unreadable(`- ${r.id}: ${r.detail}. ${r.fix}`), null);
+});
+
+test('old-blocks fails like sala unirse when the member block wraps a catalog block, and adjacent blocks are fine', () => {
+  const { memberRequirements } = require('../src/requisitos');
+  const { blockVersions } = require('../src/bloques');
+  const old = (agents) => memberRequirements({ roadmap: null, agents }, 'o/m').find((x) => x.id === 'old-blocks');
+  assert.equal(blockVersions('<!-- panel:tareas v1.4 -->x<!-- /panel:tareas --><!-- panel:entrega v1.1 -->y<!-- /panel:entrega -->\n').broken, null);
+  const wrapped = `${START}\n<!-- panel:tareas v1.4 -->\nx\n<!-- /panel:tareas -->\n${END}\n`;
+  assert.deepEqual(old(wrapped), {
+    id: 'old-blocks', ok: false, detail: 'AGENTS.md tiene las marcas del bloque panel:tareas repetidas, sin cerrar o al revés', fix: old(wrapped).fix,
+  });
+});
+
+test('old-blocks names the member block as sala unirse does', () => {
+  const { memberRequirements } = require('../src/requisitos');
+  const agents = `<!-- panel:tareas v1.4 -->\n${START}\nx\n${END}\n<!-- /panel:tareas -->\n`;
+  const r = memberRequirements({ roadmap: null, agents }, 'o/m').find((x) => x.id === 'old-blocks');
+  assert.equal(r.detail, 'AGENTS.md tiene las marcas del bloque del miembro repetidas, sin cerrar o al revés');
+});

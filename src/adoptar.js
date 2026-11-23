@@ -10,7 +10,7 @@ const { validateConfig, ConfigError } = require('./config');
 const { findMember, SalaError } = require('./abrir');
 const { reviewMember } = require('./revisar');
 const { enviar } = require('./enviar');
-const { oldBlocks, MEMBER_START, MEMBER_END } = require('./requisitos');
+const { oldBlocks, staleDetail, MEMBER_START, MEMBER_END } = require('./requisitos');
 const { template, readText, create } = require('./init');
 const { upgradeAgents } = require('./bloques');
 
@@ -90,6 +90,8 @@ async function adoptar(config, salaDir, folder, flags = {}) {
   if (agents === null || !agents.includes(MEMBER_START) || !agents.includes(MEMBER_END)) {
     warnings.push(`${id}: no tiene el bloque del miembro en AGENTS.md; \`sala condiciones ${id}\` le manda la orden de ponerse en condiciones`);
   }
+  const stale = staleDetail(agents);
+  if (stale) warnings.push(`${id}: ${stale}; \`sala condiciones ${id}\` le manda la orden de ponerse al día`);
   for (const w of oldBlocks(agents)) warnings.push(`${id}: ${w}`);
   return { sala: config.name, member, warnings };
 }

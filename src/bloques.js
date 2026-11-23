@@ -47,21 +47,50 @@ function newer(found, ours) {
   return false;
 }
 
+// Where each block of the catalog is in the text, with the version its start mark carries.
+function scan(text) {
+  return CATALOG.map((b) => ({
+    ...b,
+    found: region(text, new RegExp(`<!-- ${escape(b.name)} (v[^\\s>]+) -->`, 'g'), new RegExp(`<!-- /${escape(b.name)} -->`, 'g')),
+  }));
+}
+
+// The first block that starts inside another: it would be written twice.
+function nestedBlock(blocks) {
+  const present = blocks.filter((b) => b.found).sort((a, b) => a.found.start - b.found.start);
+  return present.find((b, i) => i > 0 && b.found.start < present[i - 1].found.end) || null;
+}
+
+// The member block, up to its end mark: the line end after it stays as it was.
+function memberRegion(text, [startMark, endMark]) {
+  return region(text, new RegExp(escape(startMark), 'g'), new RegExp(escape(endMark), 'g'));
+}
+
+// What sala revisar needs (D52): the first block with broken or nested marks (also inside the
+// member block, as sala unirse sees it), the blocks older than the kit's and the newer ones.
+// Only versions are compared: the text inside belongs to the kit.
+function blockVersions(text, memberMarks = null) {
+  const blocks = text === null ? [] : scan(text);
+  const member = text !== null && memberMarks ? memberRegion(text, memberMarks) : null;
+  const all = member && !member.broken ? [...blocks, { name: 'miembro', found: member }] : blocks;
+  const broken = blocks.find((b) => b.found && b.found.broken) || nestedBlock(all);
+  const present = blocks.filter((b) => b.found && !b.found.broken);
+  return {
+    broken: broken ? broken.name : null,
+    stale: present.filter((b) => b.found.version !== b.version && !newer(b.found.version, b.version))
+      .map((b) => ({ name: b.name, version: b.found.version, kit: b.version })),
+    newer: present.filter((b) => newer(b.found.version, b.version)).map((b) => ({ name: b.name, version: b.found.version, kit: b.version })),
+  };
+}
+
 // The new AGENTS.md text, with the blocks of the catalog and the member block up to date.
 // Returns { text, updated, warnings } or { broken: name }. Only the text between marks is
 // replaced; a block newer than the kit's is left alone with a warning.
 function upgradeAgents(text, memberBlock, memberMarks) {
-  const blocks = CATALOG.map((b) => ({
-    name: b.name,
-    version: b.version,
-    found: region(text, new RegExp(`<!-- ${escape(b.name)} (v[^\\s>]+) -->`, 'g'), new RegExp(`<!-- /${escape(b.name)} -->`, 'g')),
-    want: compatible(b),
-  }));
-  const [startMark, endMark] = memberMarks;
+  const blocks = scan(text).map((b) => ({ ...b, want: compatible(b) }));
   const member = {
     name: 'miembro',
-    // Up to its end mark: the line end after it stays as it was.
-    found: region(text, new RegExp(escape(startMark), 'g'), new RegExp(escape(endMark), 'g')),
+    found: memberRegion(text, memberMarks),
     want: memberBlock.replace(/\n$/, ''),
   };
   const broken = [...blocks, member].find((b) => b.found && b.found.broken);
@@ -73,10 +102,9 @@ function upgradeAgents(text, memberBlock, memberMarks) {
       b.keep = true;
     }
   }
-  // A block inside another would be written twice.
-  const present = [...blocks, member].filter((b) => b.found).sort((a, b) => a.found.start - b.found.start);
-  const nested = present.find((b, i) => i > 0 && b.found.start < present[i - 1].found.end);
+  const nested = nestedBlock([...blocks, member]);
   if (nested) return { broken: nested.name };
+  const present = [...blocks, member].filter((b) => b.found).sort((a, b) => a.found.start - b.found.start);
 
   let out = text;
   const updated = [];
@@ -101,4 +129,4 @@ function upgradeAgents(text, memberBlock, memberMarks) {
   return { text: out, updated, warnings };
 }
 
-module.exports = { CATALOG, upgradeAgents };
+module.exports = { CATALOG, upgradeAgents, blockVersions };
