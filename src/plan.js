@@ -40,13 +40,13 @@ function planMember(m, byPrefix) {
   if (read.error) return { id, error: read.error };
   const out = {
     id,
-    done: read.rows.filter((r) => r.estado === 'Completada').length,
-    total: read.rows.length,
+    done: m.own.filter((r) => r.estado === 'Completada').length,
+    total: m.own.length,
     inProgress: [],
     next: null,
     blocked: [],
   };
-  for (const row of read.rows) {
+  for (const row of m.own) {
     const task = { id: row.id, entrega: short(row.entrega) };
     if (row.estado === 'En curso') out.inProgress.push(task);
     else if (row.estado === 'Bloqueada') {
@@ -68,9 +68,34 @@ async function readMember(member) {
   return { id: member.id, prefix: member.prefix, read, ...prs };
 }
 
+// A lane (D57) shares the roadmap of its member, read once: the same rows, so a dependency
+// between lanes points to one task. Each member keeps only its own rows (`own`).
+async function readMembers(config) {
+  const mains = await Promise.all(config.members.filter((m) => !m.lane).map(readMember));
+  const byId = new Map(mains.map((m) => [m.id, m]));
+  const laneRows = new Map(config.members.filter((m) => m.lane).map((m) => [m.id, new Set(m.lane.rows)]));
+  const ownedByLanes = (mainId) => new Set(config.members
+    .filter((m) => m.lane && m.lane.of === mainId)
+    .flatMap((m) => m.lane.rows));
+  return config.members.map((member) => {
+    if (!member.lane) {
+      const m = byId.get(member.id);
+      const taken = ownedByLanes(member.id);
+      return { ...m, own: m.read.error ? [] : m.read.rows.filter((r) => !taken.has(r.id)) };
+    }
+    const main = byId.get(member.lane.of);
+    const rows = laneRows.get(member.id);
+    return {
+      ...main,
+      id: member.id,
+      own: main.read.error ? [] : main.read.rows.filter((r) => rows.has(r.id)),
+    };
+  });
+}
+
 async function plan(config) {
-  const members = await Promise.all(config.members.map(readMember));
-  const byPrefix = new Map(members.map((m) => [m.prefix, m]));
+  const members = await readMembers(config);
+  const byPrefix = new Map(members.filter((m, i) => !config.members[i].lane).map((m) => [m.prefix, m]));
   return {
     schema: OUTPUT_SCHEMA,
     sala: config.name,

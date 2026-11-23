@@ -76,7 +76,52 @@ function guard(config, salaDir, id, text) {
   }
 }
 
+// `/miembro-tarea [ID] [modo]`, read loosely: case, format characters and spaces never hide it.
+const TASK_ORDER = /^\/miembro-tarea(?:\s+(\S+))?(?:\s|$)/i;
+
+// The rows an ID argument names: quotes and trailing punctuation go, a list splits, and the
+// member prefix goes as many times as it is written (ERP-ERP-DM0), in any case.
+function namedRows(arg, prefix) {
+  const strip = (word) => {
+    let row = word;
+    const head = `${prefix.toLowerCase()}-`;
+    while (row.toLowerCase().startsWith(head)) row = row.slice(head.length);
+    return row.toLowerCase();
+  };
+  return arg.replace(/^["'«`]+|["'»`.:;!?]+$/g, '').split(/[,;]+/).filter(Boolean).map(strip);
+}
+
+// Lanes (D57): a task order goes only to the lane that owns its row. It needs only sala.json,
+// so it runs before the host and the session: no lane gets a row of the other one.
+function laneRefusal(config, id, text) {
+  const member = config.members.find((m) => m.id === id);
+  if (!member || typeof text !== 'string') return null;
+  const main = member.lane ? member.lane.of : member.id;
+  const lanes = config.members.filter((m) => m.lane && m.lane.of === main);
+  if (lanes.length === 0) return null;
+  const match = TASK_ORDER.exec(text.replace(/\p{Cf}/gu, '').trim());
+  if (!match) return null;
+  // Without an ID the member takes the first Pendiente row of the shared roadmap, of any lane.
+  if (!match[1]) {
+    return `${id}: ${member.lane ? 'es un carril' : 'tiene carriles'}: /miembro-tarea va con el ID de la fila, el que da sala plan`;
+  }
+  const ownerOf = (row) => lanes.find((m) => m.lane.rows.some((r) => r.toLowerCase() === row));
+  for (const row of namedRows(match[1], member.prefix)) {
+    const owner = ownerOf(row);
+    if (member.lane && owner !== member) {
+      return `${id}: ${match[1]} no es una fila de este carril (sus filas: ${member.lane.rows.join(', ')}); mandásela a ${owner ? owner.id : main}`;
+    }
+    if (!member.lane && owner) return `${id}: ${match[1]} es una fila del carril ${owner.id}; mandásela a ${owner.id}`;
+  }
+  return null;
+}
+
 async function enviar(config, salaDir, id, text) {
+  const lane = laneRefusal(config, id, text);
+  if (lane) {
+    logOrder(salaDir, { member: id, session: null, text, result: 'refused' });
+    throw new SalaError(lane);
+  }
   // A hosted member gets the order through its host, which has the guards (D51).
   const known = config.members.some((m) => m.id === id);
   const hosted = known ? await hostCall(pipePath(config, salaDir, id), { action: 'prompt', text }) : null;
