@@ -354,3 +354,8 @@ Salen del primer ciclo de la sala de upen, que se hizo desde la sesión del kit 
   - `sala revisar` avisa si el bloque nombra otra sala.
 
   La sala de un proyecto es la sesión de Gentle Shell en su instancia (en upen, upen-ceo): el día a día de los miembros se maneja desde ahí, no desde la sesión del kit. Mirar un repo sin mandarle nada (su estado o su plan), sea o no miembro de una sala, es otra cosa y queda para después.
+
+- **D57. Un repo con dos carriles: dos miembros, y cada fila para uno solo.** Decisión de la persona del 2026-11-23, por el ERP de upen, que se trabaja desde dos clones: `devs/upen-erp` (el carril principal) y `devs/upen-erp-pantallas` (el de pantallas, que solo toca `apps/admin/`). Son el mismo repo en la misma sala, así que D56 se cumple. Cada clon es un miembro, con su carpeta, su sesión, su terminal, su veredicto y su fusión, como cualquier otro. El segundo no repite el prefijo: dice de qué miembro es carril y qué filas son suyas, por ejemplo `"lane": { "of": "erp", "rows": ["DM0", "DS-BASE", "CUENTAS-2"] }`. Las dependencias como `ERP-B10` se resuelven una vez, sobre el roadmap compartido.
+  - **Una fila, un carril.** La cola reparte cada fila del roadmap compartido a un solo miembro: las de `rows` al carril y el resto al miembro principal. Así `sala plan`, `/sala-plan` y el paso `next` de `sala fusionar` nunca le ofrecen la misma fila a los dos.
+  - **Las órdenes también.** `sala enviar` niega un `/miembro-tarea <ID>` cuya fila es del otro carril.
+  - Una fila nueva que no está en `rows` va al miembro principal. Se descartó un miembro con dos carpetas: todos los comandos que miran una sesión tendrían que elegir carpeta.
