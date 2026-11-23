@@ -132,6 +132,40 @@ test('sala reiniciar never closes a session that works, waits, asks, has its tas
   assert.equal(fs.existsSync(path.join(s.agentDir, 'desktop', 'sessions', 'c1.json')), true);
 });
 
+test('sala reiniciar takes the late session of the terminal it opened, and never someone else\'s', async (t) => {
+  const late = { ...OLD, session: null };
+  const s = setup(t, { record: late });
+  s.session('c1', s.core.work);
+  s.session('c2', s.core.work);
+
+  const refused = (why) => ({ error: `core: la sesión de la terminal term_old no está anotada y la sala no la toma como suya (${why}); no la cierra` });
+  const two = await runAsync(s.dir, ['reiniciar', 'core'], s.env);
+  assert.equal(two.code, 1);
+  assert.equal(two.stdout, '');
+  assert.deepEqual(JSON.parse(two.stderr), refused('el miembro tiene 2 sesiones vivas'));
+  fs.rmSync(path.join(s.agentDir, 'desktop', 'sessions', 'c2.json'));
+  for (const [env, why] of [
+    [{ FAKE_ORCA_TERMINALS_FILE: path.join(s.dir, 'nada.txt') }, 'la terminal term_old ya no está en Orca'],
+    [{ FAKE_ORCA_DOWN: '1' }, 'Orca no responde'],
+  ]) {
+    const res = await runAsync(s.dir, ['reiniciar', 'core'], { ...s.env, ...env });
+    assert.equal(res.code, 1, why);
+    assert.deepEqual(JSON.parse(res.stderr), refused(why));
+  }
+  assert.deepEqual(s.closes(), []);
+  assert.deepEqual(s.state().members.core, late);
+  assert.equal(fs.existsSync(path.join(s.dir, '.sala', 'abrir.lock')), false);
+
+  const res = await runAsync(s.dir, ['reiniciar', 'core'], s.env);
+
+  assert.equal(res.code, 0, res.stderr);
+  assert.deepEqual(JSON.parse(res.stdout), { member: 'core', closed: 'term_old', launcher: 'orca', handle: 'term_fake1', session: 'nueva' });
+  assert.deepEqual(s.closes(), [CLOSE_OLD]);
+  const { openedAt, ...record } = s.state().members.core;
+  assert.deepEqual(record, { launcher: 'orca', handle: 'term_fake1', title: 'core', session: 'nueva' });
+  assert.equal(fs.existsSync(path.join(s.dir, '.sala', 'abrir.lock')), false);
+});
+
 test('a session that outlives its closed terminal is reported and no second session is opened', async (t) => {
   const s = setup(t);
   s.session('c1', s.core.work);

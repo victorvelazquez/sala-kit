@@ -75,7 +75,9 @@ Uso:
   sala abrir <miembro> [--texto] [--sala <carpeta>]
                                              reusa la sesión viva del miembro o abre una nueva en Orca
                                              o en Windows Terminal (options.launcher), espera a que
-                                             Gentle Shell la publique y la anota en .sala/estado.json
+                                             Gentle Shell la publique y la anota en .sala/estado.json;
+                                             si la sesión de su terminal de Orca apareció tarde y es la
+                                             única del miembro, la anota al reusarla
   sala mostrar <miembro> [--texto] [--sala <carpeta>]
                                              muestra la terminal de Orca que abrió la sala, o dice
                                              el título de su pestaña de Windows Terminal
