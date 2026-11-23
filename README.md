@@ -46,6 +46,7 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-entregar <miembro>` | Le pide la entrega con `/miembro-entregar`, espera y muestra el veredicto |
 | `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente con `/miembro-tarea`. No es `sala seguir`, que levanta una pausa |
 | `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
+| `/sala-avanzar` | Corre `sala proximo` y muestra el paso de cada miembro numerado, en una sola pregunta; corre solo los números que aprobás (aprobar una fusión es el OK para ese PR, D19), espera y vuelve a mostrar la lista. No ofrece fusionar un PR cuyo veredicto falló |
 | `/sala-adoptar [carpetas]` | Adopta las carpetas con `sala adoptar`, las revisa y, con tu OK por miembro, le manda la orden de ponerse en condiciones (`sala condiciones`) |
 | `/sala-soltar <miembro>` | Con tu OK, saca al miembro de la sala con `sala soltar`; su repositorio queda igual |
 | `/sala-novedades` | Lee qué cambió en Gentle Shell y en pi desde la versión de `contrato/gentle-shell.json` y numera lo que hay que ajustar y lo nuevo que conviene aprovechar, para que elijas qué pasa al roadmap del kit. Solo lee |
@@ -223,7 +224,7 @@ Después de mandar un comando, `sala veredicto` comprueba en JSON que haya dejad
 
 | Comando | Regla | Qué comprueba |
 |---|---|---|
-| `miembro-entregar` (y, de puente, `flow-ship` y `flow-pr`) | `entrega` | está en una rama que no es la base, el árbol está limpio, el último commit está en el remoto, hay un PR abierto de esa rama, su CI está en verde (o no tiene) y la fila de la tarea cuyo ID cierra el título del PR dice `Completada` en el roadmap del último commit (D45) |
+| `miembro-entregar` (y, de puente, `flow-ship` y `flow-pr`) | `entrega` | está en una rama que no es la base, el árbol está limpio, el último commit está en el remoto, hay un PR abierto de esa rama, su CI está en verde (o no tiene) y la fila de la tarea cuyo ID cierra el título del PR dice `Completada` en el roadmap del último commit (D45); además, `order`: ese ID es el de la última `/miembro-tarea <ID>` que la sala le mandó a ese miembro, leída de `.sala/ordenes.log`. Si no coincide, falla; sin una orden anotada con ID, avisa y no falla (SK32b) |
 | `miembro-base` (y, de puente, `flow-base`) | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto; si el miembro tiene `pnpm-lock.yaml` o `package-lock.json`, también que sus dependencias estén instaladas (`deps`, con la regla de `sala dependencias`) |
 
 El comando va con o sin `/`, y lo que sigue al primer espacio no cuenta: `/flow-ship SK2d` es `flow-ship`. Como solo lee, también reconoce el comando cuando Git Bash lo convirtió en ruta (`C:/Program Files/Git/flow-ship`), sin hacer falta `MSYS_NO_PATHCONV=1`. Los nombres de las reglas (`entrega` y `base`) también sirven como comando. Los `/flow-*` son un puente: los miembros los usan hasta que la fase 5 los cambia por los `/miembro-*` (D26), y ahí se quitan. Cada comprobación sale con su `id`, si pasó y el motivo; `ok` es `true` solo si pasan todas. Después de una entrega, el JSON trae también la rama, el commit, el PR con su CI y el ID de la tarea.
@@ -246,7 +247,7 @@ Fusiona el PR #n del miembro y sigue con su tarea siguiente, en una sola cadena 
 
 | Paso | Qué hace |
 |---|---|
-| `pr` | El PR está abierto, no es un borrador, va a la base del miembro, todos sus checks terminaron en verde (`SUCCESS`, `NEUTRAL` o `SKIPPED`; un resultado que el kit no conoce no cuenta como verde) o no tiene CI, y GitHub dice que se puede fusionar |
+| `pr` | El PR está abierto, no es un borrador, va a la base del miembro, todos sus checks terminaron en verde (`SUCCESS`, `NEUTRAL` o `SKIPPED`; un resultado que el kit no conoce no cuenta como verde) o no tiene CI, GitHub dice que se puede fusionar y su tarea es la que la sala le pidió a ese miembro (el check `order` del veredicto de la entrega; sin una orden anotada, no frena) |
 | `session` | El miembro tiene una sola sesión viva que puede recibir órdenes, con las guardas de `sala enviar`. Sin ella no se fusiona: después no podría volver a la base |
 | `merge` | Fusiona con el primer método que el repo permite (squash, rebase o merge), y solo si la cabeza del PR sigue siendo el commit que se comprobó (`--match-head-commit`). Después comprueba que el PR figure `MERGED`: con una cola de fusión, `gh` puede terminar bien con el PR todavía abierto, y la cadena no sigue |
 | `base` | Le manda `/miembro-base` a la sesión del miembro y espera a que termine |
@@ -290,7 +291,7 @@ El paso siguiente de cada miembro, con el comando exacto, para contestar «¿qu�
 | `contestar` | tiene una pregunta abierta, o la sesión está bloqueada | `sala preguntas` o `sala mostrar <miembro>` |
 | `esperar` | está trabajando o espera a sus agentes | `sala esperar <miembro>` |
 | `entregar` | está libre con cambios sin commit, o en su rama sin PR abierto | `/sala-entregar <miembro>` |
-| `fusionar` | el PR de su rama tiene el CI en verde (o no tiene CI) | `/sala-fusionar <miembro> <n>`, con el OK de la persona |
+| `fusionar` | el PR de su rama tiene el CI en verde (o no tiene CI) y es de la tarea que la sala le pidió; si es de otra, el paso es `revisar` | `/sala-fusionar <miembro> <n>`, con el OK de la persona |
 | `ci` | el PR de su rama tiene el CI corriendo o en rojo, o es un borrador | — |
 | `base` | su rama ya se fusionó, o la base está atrás del remoto | `sala enviar <miembro> /miembro-base` |
 | `tarea` | está en su base, limpia y al día, con una tarea lista en el plan | `/sala-seguir <miembro>` |

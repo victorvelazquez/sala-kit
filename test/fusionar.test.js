@@ -84,7 +84,8 @@ test('sala fusionar checks the PR, merges it, goes back to the base, runs the ga
     ['string', 'core', 3, 'next', true],
   ]);
 
-  const texto = await runAsync(s.dir, ['fusionar', 'core', '3', '--texto'], s.env);
+  // The chain asked for E2, so the next PR it merges is the one of E2 (SK32b).
+  const texto = await runAsync(s.dir, ['fusionar', 'core', '3', '--texto'], { ...s.env, FAKE_GH_PR: pr({ title: 'feat: entrega (E2)' }) });
   assert.equal(texto.code, 0, texto.stderr);
   assert.deepEqual(texto.stdout.split('\n').slice(2, 3), ['  sí  session  la sesión id-c1 puede recibir órdenes']);
 });
@@ -128,6 +129,23 @@ test('a PR that is not ready is never merged, and the chain says which step stop
     assert.deepEqual(JSON.parse(res.stderr), { error }, n);
   }
   assert.deepEqual(s.calls(), []);
+});
+
+test('a PR of a task the sala did not ask that member for is never merged (SK32b)', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core.work);
+  fs.mkdirSync(path.join(s.dir, '.sala'), { recursive: true });
+  fs.writeFileSync(path.join(s.dir, '.sala', 'ordenes.log'), `${JSON.stringify({ member: 'core', session: 'id-c1', text: '/miembro-tarea E9', result: 'sent' })}
+`);
+
+  const res = await runAsync(s.dir, ['fusionar', 'core', '3'], s.env);
+
+  assert.equal(res.code, 1);
+  const out = JSON.parse(res.stdout);
+  assert.equal(out.stoppedAt, 'pr');
+  assert.deepEqual(out.steps, [{ id: 'pr', ok: false, detail: 'PR #3: es de E1, pero la sala le pidió E9' }]);
+  assert.deepEqual(s.merges(), []);
+  assert.deepEqual(s.inbox('c1'), []);
 });
 
 test('without a session that can take orders, or with the sala paused, nothing is merged', async (t) => {

@@ -69,6 +69,16 @@ test('a free member delivers its work, its PR is merged when its CI is green, an
   assert.deepEqual(await s.next({ FAKE_GH_OUT: pr({ isDraft: true }) }),
     { id: 'core', step: 'ci', detail: 'el PR #3 es un borrador', command: null });
 
+  // A PR of a task the sala did not ask for is never offered to merge (SK32b).
+  fs.mkdirSync(path.join(s.dir, '.sala'), { recursive: true });
+  fs.writeFileSync(path.join(s.dir, '.sala', 'ordenes.log'), `${JSON.stringify({ member: 'core', session: 'id-c1', text: '/miembro-tarea E1', result: 'sent' })}
+`);
+  assert.deepEqual(await s.next({ FAKE_GH_OUT: pr() }),
+    { id: 'core', step: 'revisar', detail: 'el PR #3 es de E2, pero la sala le pidió E1: no se fusiona', command: null });
+  fs.appendFileSync(path.join(s.dir, '.sala', 'ordenes.log'), `${JSON.stringify({ member: 'core', session: 'id-c1', text: '/miembro-tarea E2', result: 'sent' })}
+`);
+  assert.equal((await s.next({ FAKE_GH_OUT: pr() })).step, 'fusionar');
+
   // A branch whose PR was already merged (from GitHub, say) goes back to the base, it is not delivered again.
   assert.deepEqual(await s.next({ FAKE_GH_MERGED: JSON.stringify([{ number: 3 }]) }),
     { id: 'core', step: 'base', detail: 'el PR #3 de la rama feat ya se fusionó', command: 'sala enviar core /miembro-base' });

@@ -6,6 +6,7 @@
 const { run, redact } = require('./run');
 const { estado, ghCommand } = require('./estado');
 const { plan } = require('./plan');
+const { orderMismatch, TITLE_ID } = require('./veredicto');
 
 const OUTPUT_SCHEMA = 1;
 
@@ -25,7 +26,7 @@ async function mergedPr(dir, branch) {
   }
 }
 
-async function nextStep(m, planned) {
+async function nextStep(m, planned, salaDir, member) {
   const { id } = m;
   if (m.branch === undefined) return step(id, 'revisar', m.gate.reasons.join('; '));
   const sessions = m.sessions || [];
@@ -49,6 +50,10 @@ async function nextStep(m, planned) {
       if (pr.draft) return step(id, 'ci', `el PR #${pr.number} es un borrador`);
       if (pr.ci === 'pending') return step(id, 'ci', `el CI del PR #${pr.number} está corriendo`);
       if (pr.ci === 'failing') return step(id, 'ci', `el CI del PR #${pr.number} está en rojo: hay que corregirlo`);
+      // A PR of a task the sala did not ask for is never offered to merge (SK32b).
+      const task = TITLE_ID.exec(String(pr.title));
+      const why = task && member ? orderMismatch(salaDir, member, task[1].trim()) : null;
+      if (why) return step(id, 'revisar', `el PR #${pr.number} ${why}: no se fusiona`);
       return step(id, 'fusionar', `el PR #${pr.number} «${pr.title}» tiene el CI en verde`, `/sala-fusionar ${id} ${pr.number}`);
     }
     const merged = await mergedPr(m.path, m.branch);
@@ -67,13 +72,13 @@ async function nextStep(m, planned) {
   return step(id, 'libre', 'no tiene una tarea lista en su roadmap');
 }
 
-async function proximo(config) {
+async function proximo(config, salaDir) {
   // One after the other: both fetch the base of each member, and two fetches of the same
   // repo at once race on its remote ref.
   const state = await estado(config);
   const planned = await plan(config);
   const byId = new Map(planned.members.map((p) => [p.id, p]));
-  const members = await Promise.all(state.members.map((m) => nextStep(m, byId.get(m.id))));
+  const members = await Promise.all(state.members.map((m) => nextStep(m, byId.get(m.id), salaDir, config.members.find((c) => c.id === m.id))));
   return { schema: OUTPUT_SCHEMA, sala: config.name, members };
 }
 
