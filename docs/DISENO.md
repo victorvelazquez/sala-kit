@@ -97,7 +97,7 @@ Además, la sala está atada a upen: los repos en `proyectos.conf`, supuestos de
   - después de volver a la base: en la base, limpio y al día.
 
   Las reglas son por resultado (`entrega` y `base`) y los comandos son alias: `miembro-entregar` y `miembro-base` (D21) son los definitivos, y `flow-ship`, `flow-pr` y `flow-base` son un puente que se quita en SK5c (D26). Decidido por la persona el 2026-11-21, en SK2d.
-- **D17.** **Preguntas.** Toda decisión de la sala con alternativas finitas se pregunta con `ask_user_choice`: la opción recomendada primero y texto libre solo si la respuesta es abierta. Las preguntas de un miembro llegan por `pendingQuestion` del feed y **la sala las muestra completas en su chat**, de cualquier clase. La persona contesta libremente en el input de la sala, y la sala **nunca contesta por su cuenta**. Cómo llega la respuesta al miembro depende de la clase de pregunta:
+- **D17.** **Preguntas.** *Acotada el 2026-11-23 por D53: vale para las preguntas de Gentle Shell (`pendingQuestion`, diálogos y consentimientos); el plan que un miembro le manda a la sala como texto lo contesta la sala según D53.* Toda decisión de la sala con alternativas finitas se pregunta con `ask_user_choice`: la opción recomendada primero y texto libre solo si la respuesta es abierta. Las preguntas de un miembro llegan por `pendingQuestion` del feed y **la sala las muestra completas en su chat**, de cualquier clase. La persona contesta libremente en el input de la sala, y la sala **nunca contesta por su cuenta**. Cómo llega la respuesta al miembro depende de la clase de pregunta:
 
 | Clase de pregunta | Por el feed (sesión en Orca o Windows Terminal) | Por RPC (SK7) |
 |---|---|---|
@@ -320,3 +320,26 @@ Salen de la primera prueba real de una sala: `tools-sala`, con repo-panel como m
   - `sala revisar` suma el requisito «sin bloques viejos», con la orden para cumplirlo, y `sala condiciones` se la manda al miembro.
 
   Las fuentes que vuelven a instalar las versiones viejas se retiran, para que no reviertan el cambio: los chequeos de `rp41-standard` en repo-panel (repo-panel integrará sala-kit como una función más cuando el kit ande entero) y la plantilla de origen de `orquestacion:ciclo`.
+
+## Decisiones de la octava ronda (2026-11-23)
+
+Salen de cómo trabaja la persona a mano en upen el 2026-11-23: la sala manda una orden, el miembro responde con su plan y frena, la sala lo revisa contra lo que el miembro no ve, lo corrige y devuelve el OK, el miembro implementa y la sala lee el reporte. La persona quiere que la sala haga sola la revisión y el OK, cuidando el consumo. Decisiones de la persona del 2026-11-23, sobre la propuesta que se analizó ese día.
+
+- **D53. La puerta del plan: qué decide la sala sola y qué le pregunta a la persona.** El plan que manda un miembro es un mensaje de texto: la sala lo lee con `sala respuesta` y contesta con `sala enviar`. Las preguntas de Gentle Shell siguen con D17 (la sala nunca las contesta) y los consentimientos, con D48 (los da siempre la persona).
+  - **Decide sola:** lo que sale de algo ya decidido o escrito (decisiones, contratos, la vara de calidad, guías, roadmaps) y las elecciones técnicas reversibles dentro del alcance (nombres, partir una unidad que pasa el tope, el orden interno, las pruebas).
+  - **Le pregunta a la persona:** un cambio de alcance o del orden del plan; algo que afecta a otro proyecto o pide una enmienda de contrato nueva; producto, marca, textos para clientas, precios, datos personales, legal o dinero; lo irreversible (datos reales, migraciones con datos, borrar); dos fuentes que se contradicen; un riesgo alto con una duda real.
+  - **Cómo pregunta:** todas las preguntas de un ciclo juntas, con `ask_user_question`, cada una con contexto corto, opciones y la recomendación de la sala primero, para contestar en una línea.
+- **D54. La puerta del plan va según el riesgo, no siempre.**
+  - **Con puerta:** riesgo alto, cambios que tocan otro proyecto o un contrato, y unidades grandes (más de unas 300 líneas).
+  - **Directa:** lo de riesgo bajo y claro (ajustar valores, cerrar una fila, una corrección chica) va a implementar sin vuelta de plan.
+  - **Ante la duda, con puerta.** La orden dice en qué modo va, y el miembro puede pedir la puerta si encuentra algo inesperado.
+  - **Formato fijo y corto** para el plan (qué entendí, plan, tamaño, decisiones abiertas con su recomendación, riesgos) y para el reporte, sin repetir el contexto que la sala ya tiene. Los encabezados se fijan para que un script los lea.
+  - **Tope:** dos vueltas de plan por unidad; si no alcanza, la sala le pregunta a la persona (D40).
+- **D55. El consumo y el control son parte del diseño.**
+  - **Modelos:** toda revisión de un plan, con el modelo fuerte, porque es donde un error cuesta más y no se ve. El barato (D28) lee reportes, lleva el registro y propone la orden siguiente.
+  - **La sesión de la sala la rota la persona,** a mano, con `/new`, cuando le parece. El kit no la rota; al volver, la sala retoma con `sala estado --retomar` (D37).
+  - **Cada miembro arranca una sesión nueva en cada ciclo,** después de su última entrega (D29), porque la persona casi no va a entrar a su sesión. Para eso la sala abre ella las sesiones de los miembros y tiene que reconocer la terminal que abrió (SK17).
+  - **Sala liviana:** para revisar un plan, la sala lee solo lo que ese plan toca: la fila, la decisión y la sección del contrato o de la guía. El índice que dice qué documento cubre qué tema es de cada instancia (en upen, SK6).
+  - **Registro de ciclos, versionado en la instancia:** por ciclo, la orden y su modo, lo que pidió el miembro, lo que respondió la sala y por qué, quién lo decidió, y el costo del miembro y de la sala leído del feed. Sirve para revisar y corregir el criterio, y para ver qué tipo de unidad gasta más.
+  - **Modo de prueba primero:** la sala muestra la respuesta que propone («propongo responder esto, ¿va?») y la manda solo con el OK. El modo automático lo prende la persona cuando confía, mirando el registro.
+  - **Se calibra en upen.** Por eso SK1d y SK5c se destraban el 2026-11-23, antes de terminar el kit. Los ejemplos reales de ese día son los primeros casos de los evals (D43).
