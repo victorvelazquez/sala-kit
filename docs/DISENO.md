@@ -343,3 +343,14 @@ Salen de cómo trabaja la persona a mano en upen el 2026-11-23: la sala manda un
   - **Registro de ciclos, versionado en la instancia:** por ciclo, la orden y su modo, lo que pidió el miembro, lo que respondió la sala y por qué, quién lo decidió, y el costo del miembro y de la sala leído del feed. Sirve para revisar y corregir el criterio, y para ver qué tipo de unidad gasta más.
   - **Modo de prueba primero:** la sala muestra la respuesta que propone («propongo responder esto, ¿va?») y la manda solo con el OK. El modo automático lo prende la persona cuando confía, mirando el registro.
   - **Se calibra en upen.** Por eso SK1d y SK5c se destraban el 2026-11-23, antes de terminar el kit. Los ejemplos reales de ese día son los primeros casos de los evals (D43).
+
+## Decisiones de la novena ronda (2026-11-23)
+
+Salen del primer ciclo de la sala de upen, que se hizo desde la sesión del kit para medirlo: dos sesiones podían mandarle órdenes al mismo miembro.
+
+- **D56. Un repo, una sala.** Decisión de la persona del 2026-11-23. Un repositorio es miembro de una sola sala, que es la única que le manda órdenes, lo fusiona y le pide tareas. Si dos salas lo coordinaran, las guardas no alcanzan: las dos ven la misma sesión en el feed, pueden mandarle dos órdenes seguidas o elegir la misma tarea, la pausa de una no frena a la otra y una puede fusionar un PR que ordenó la otra. Por eso el kit lo hace cumplir:
+  - el bloque del miembro nombra a su sala, y `sala unirse` lo escribe;
+  - `sala adoptar` se niega si el repo ya tiene el bloque de otra sala, y dice cuál;
+  - `sala revisar` avisa si el bloque nombra otra sala.
+
+  La sala de un proyecto es la sesión de Gentle Shell en su instancia (en upen, upen-ceo): el día a día de los miembros se maneja desde ahí, no desde la sesión del kit. Mirar un repo sin mandarle nada (su estado o su plan), sea o no miembro de una sala, es otra cosa y queda para después.
