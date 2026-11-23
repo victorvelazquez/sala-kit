@@ -7,7 +7,7 @@ const { estado, estadoTexto } = require('../src/estado');
 const { plan, planTexto } = require('../src/plan');
 const { revisar, revisarTexto } = require('../src/revisar');
 const { abrir, abrirTexto, mostrar, mostrarTexto, retomar, retomarTexto, SalaError } = require('../src/abrir');
-const { enviar, enviarTexto, esperar, esperarTexto } = require('../src/enviar');
+const { enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto } = require('../src/enviar');
 const { veredicto, veredictoTexto } = require('../src/veredicto');
 const { preguntas, preguntasTexto, responder, responderTexto } = require('../src/responder');
 const { init, initTexto, donde, dondeTexto } = require('../src/init');
@@ -94,6 +94,10 @@ Uso:
   sala esperar <miembro> [--texto] [--sala <carpeta>]
                                              espera a que el miembro termine de verdad (sin subagentes
                                              ni trabajos) o te necesite; tope de 30 minutos
+  sala respuesta <miembro> [--texto] [--sala <carpeta>]
+                                             la última respuesta de la sesión viva del miembro, leída
+                                             de su archivo de sesión, con los secretos enmascarados y
+                                             recortada a 8000 caracteres; no anota nada
   sala preguntas [--texto] [--sala <carpeta>]
                                              las preguntas abiertas de todos los miembros, completas,
                                              y dónde se contesta cada una: desde la sala o en la
@@ -178,6 +182,7 @@ const COMMANDS = {
   mostrar: { run: (config, opts) => mostrar(config, opts.sala, opts.member), texto: mostrarTexto, member: 'required' },
   enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: 'una orden' },
   esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
+  respuesta: { run: (config, opts) => respuesta(config, opts.member), texto: respuestaTexto, member: 'required' },
   veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
   preguntas: { run: (config, opts) => preguntas(config, opts.sala), texto: preguntasTexto },
   hospedar: {

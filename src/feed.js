@@ -181,7 +181,8 @@ function readFeed(roots, members) {
       sessions[member.id].push(summary(snap, name));
       // The raw activity state goes to the targets only: a close needs the session to say idle.
       const activity = snap.activity && typeof snap.activity.state === 'string' ? snap.activity.state : null;
-      targets[member.id].push({ agentDir: root, name, sessionId: snap.identity.sessionId, question: rawQuestion(snap.pendingQuestion), activity });
+      const sessionFile = typeof snap.identity.sessionFile === 'string' && snap.identity.sessionFile ? snap.identity.sessionFile : null;
+      targets[member.id].push({ agentDir: root, name, sessionId: snap.identity.sessionId, question: rawQuestion(snap.pendingQuestion), activity, sessionFile });
     }
   }
   return { sessions, targets, warnings };
@@ -205,6 +206,74 @@ function feedSchemas(roots) {
     }
   }
   return [...schemas].sort();
+}
+
+// The last reply of a session (SK12), read from the end of its .jsonl file. Only a
+// plain .jsonl inside <agentDir>/sessions is read, whatever path the snapshot names.
+const MAX_TAIL = 2 * 1024 * 1024;
+const MAX_REPLY = 8000;
+// A whole private key block, not only its first line, is masked.
+const KEY_BLOCK = /-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY(?: BLOCK)?-----|$)/g;
+// Controls but new lines and tabs, and invisible format characters (bidi, zero width, soft
+// hyphen) never reach the screen. They go before masking: one hidden inside a secret would
+// hide it from the mask and, dropped afterwards, rebuild it.
+const REPLY_CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\p{Cf}]/gu;
+
+function sessionFileOk(target) {
+  const file = target.sessionFile;
+  const sessions = path.join(target.agentDir, 'sessions');
+  if (!file || !path.isAbsolute(file) || path.extname(file).toLowerCase() !== '.jsonl' || !inside(file, sessions)) return false;
+  const stat = fs.lstatSync(file, { throwIfNoEntry: false });
+  // A missing file is told as such by the read; a present one must really live there.
+  if (!stat) return true;
+  try {
+    // A hard link would carry a file from elsewhere in under a trusted name.
+    return stat.isFile() && stat.nlink === 1 && inside(fs.realpathSync(file), fs.realpathSync(sessions));
+  } catch {
+    return false;
+  }
+}
+
+function lastReply(target) {
+  const who = clip(target.sessionId, 128);
+  if (!target.sessionFile) return refuse('no_session_file', `la sesión ${who} no publica su archivo de sesión`);
+  if (!sessionFileOk(target)) return refuse('untrusted', `el archivo de sesión de ${who} no es un .jsonl de la carpeta sessions de Gentle Shell`);
+  let tail;
+  try {
+    const fd = fs.openSync(target.sessionFile, 'r');
+    try {
+      const size = fs.fstatSync(fd).size;
+      const length = Math.min(size, MAX_TAIL);
+      const buf = Buffer.alloc(length);
+      fs.readSync(fd, buf, 0, length, size - length);
+      tail = buf.toString('utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (err) {
+    return refuse('unreadable', `no se pudo leer el archivo de sesión de ${who} (${err.code || 'error'})`);
+  }
+  const lines = tail.split('\n').reverse();
+  for (const line of lines) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue; // A line cut by the tail or half-written.
+    }
+    const msg = entry && entry.type === 'message' && entry.message;
+    if (!msg || msg.role !== 'assistant' || !Array.isArray(msg.content)) continue;
+    const parts = msg.content.filter((c) => c && c.type === 'text' && typeof c.text === 'string' && c.text.trim() !== '').map((c) => c.text);
+    if (parts.length === 0) continue;
+    const text = mask(parts.join('\n').replace(REPLY_CONTROL, '').replace(KEY_BLOCK, '[clave privada]'));
+    return {
+      ok: true,
+      at: typeof entry.timestamp === 'string' ? clip(entry.timestamp, 40) : null,
+      text: text.slice(0, MAX_REPLY),
+      truncated: text.length > MAX_REPLY,
+    };
+  }
+  return refuse('no_reply', `la sesión ${who} todavía no respondió nada`);
 }
 
 // The closed list of D50: any other kind, or other args, is refused before writing.
@@ -287,4 +356,4 @@ async function sendAction(target, kind, args, { timeoutMs = 10000 } = {}) {
   return refuse('timeout', `la sesión no respondió en ${timeoutMs / 1000} s`);
 }
 
-module.exports = { readFeed, feedSchemas, sendAction, feedRoots, FEED_SCHEMA, CONSENT, bare };
+module.exports = { readFeed, feedSchemas, sendAction, lastReply, MAX_REPLY, feedRoots, FEED_SCHEMA, CONSENT, bare };
