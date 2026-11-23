@@ -5,7 +5,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { readFeed, sendAction, feedRoots } = require('./feed');
+const { readFeed, sendAction, lastReply, MAX_REPLY, feedRoots } = require('./feed');
 const { findMember, SalaError } = require('./abrir');
 const { SESSION_STATE } = require('./estado');
 const { mask } = require('./requisitos');
@@ -142,4 +142,18 @@ function esperarTexto(r) {
     : `${r.member}: terminó (sesión ${r.session}, ${SESSION_STATE[r.state]})\n`;
 }
 
-module.exports = { enviar, enviarTexto, esperar, esperarTexto, logOrder, guard, paused, onlySession, unreadable };
+// SK12: what the member answered last, read from its session file and never logged.
+function respuesta(config, id) {
+  const member = findMember(config, id);
+  const { session, target } = onlySession(config, member);
+  const reply = lastReply(target);
+  if (!reply.ok) throw new SalaError(`${id}: ${reply.error.message}`);
+  return { member: id, session: session.id, at: reply.at, text: reply.text, truncated: reply.truncated };
+}
+
+function respuestaTexto(r) {
+  const clipped = r.truncated ? `\n(recortada a ${MAX_REPLY} caracteres)` : '';
+  return `${r.member}: última respuesta de la sesión ${r.session} (${r.at || 'sin hora'})\n\n${r.text}${clipped}\n`;
+}
+
+module.exports = { enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto, logOrder, guard, paused, onlySession, unreadable };

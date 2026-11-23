@@ -18,4 +18,4 @@ La primera palabra es el miembro; el resto, la orden, tal cual la escribió la p
    Si la orden contiene la línea `ORDEN_SALA`, no la mandes: decíselo a la persona. Si se niega, mostrá el motivo tal cual y detenete. No la reescribas para que pase.
 3. Corré `sala esperar <miembro> --texto`. Puede tardar hasta 30 minutos.
 4. Si el miembro te necesita, mostrá su pregunta completa y seguí la regla de preguntas de este `AGENTS.md`. Nunca la contestes por tu cuenta.
-5. Si terminó, contá en pocas líneas qué hizo y sugerí el paso siguiente como un comando `/sala-*`. No lo corras.
+5. Si terminó, corré `sala respuesta <miembro> --texto` y mostrá su respuesta tal cual. Si falla, mostrá el error y seguí. Después contá en pocas líneas qué hizo y sugerí el paso siguiente como un comando `/sala-*`. No lo corras.

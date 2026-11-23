@@ -133,11 +133,12 @@ Si la sesión no aparece a tiempo, `sala abrir` termina con error pero el handle
 
 `sala mostrar` lleva la terminal de Orca que abrió la sala al frente (`orca terminal switch`), después de comprobar con `orca terminal list` que sigue abierta. En Windows Terminal no se puede elegir una pestaña desde afuera: dice su título. Cerrar sesiones llega en SK3c.
 
-## `sala enviar` y `sala esperar`
+## `sala enviar`, `sala esperar` y `sala respuesta`
 
 ```
 sala enviar <miembro> <orden> [--texto] [--sala <carpeta>]
 sala esperar <miembro> [--texto] [--sala <carpeta>]
+sala respuesta <miembro> [--texto] [--sala <carpeta>]
 ```
 
 `sala enviar` deja la orden (por ejemplo `/flow-avance`) en la bandeja de la sesión del miembro, como `send_prompt`, y espera hasta 10 s a que Gentle Shell la acepte. Antes de escribir nada comprueba las guardas del kit (D13):
@@ -152,6 +153,8 @@ Gentle Shell suma sus propias guardas: niega los comandos que solo corren en la 
 Git Bash convierte `/flow-avance` en una ruta (`C:/Program Files/Git/flow-avance`) antes de que la CLI la vea. `sala enviar` reconoce esa ruta y se niega; desde Git Bash, corré `MSYS_NO_PATHCONV=1 sala enviar core /flow-avance`.
 
 `sala esperar` vigila el estado de la sesión en el feed y termina cuando el miembro termina **de verdad**: `idle` durante 3 s seguidos, para no confundir el momento antes de que arranque una orden recién mandada. Mientras dice `waiting` (le quedan subagentes o trabajos) sigue esperando (D15). Termina enseguida, con `state: "needs-you"` y la pregunta, si el miembro te necesita. Falla si la sesión se cierra o si pasan 30 minutos. Está pensada para que la sala la corra como trabajo en segundo plano y duerma sin gastar tokens hasta que termine.
+
+`sala respuesta` trae lo último que contestó la sesión viva del miembro, así su informe se lee en la sala sin ir a su pestaña (SK12). Lo lee del archivo de sesión que publica el feed (`identity.sessionFile`), solo si es un `.jsonl` común dentro de la carpeta `sessions` de Gentle Shell (o de pi), y toma el último mensaje del asistente que tenga texto. Devuelve el miembro, la sesión, la hora del mensaje (`at`), el texto y `truncated`. El texto sale con cada secreto enmascarado (también el bloque entero de una clave privada), sin caracteres de control ni de dirección, y recortado a 8000 caracteres. No anota nada en `.sala/ordenes.log`. Un miembro hospedado con `sala hospedar` todavía no tiene respuesta: no publica su sesión en el feed.
 
 ## `sala pausar` y `sala seguir`
 
