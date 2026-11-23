@@ -102,7 +102,9 @@ Uso:
                                              anfitrión, si no está trabajando
   sala esperar <miembro> [--texto] [--sala <carpeta>]
                                              espera a que el miembro termine de verdad (sin subagentes
-                                             ni trabajos) o te necesite; tope de 30 minutos
+                                             ni trabajos) o te necesite; después de una orden de
+                                             sala enviar, espera primero a que la empiece (tope de 2
+                                             minutos); tope total de 30 minutos
   sala respuesta <miembro> [--texto] [--sala <carpeta>]
                                              la última respuesta de la sesión viva del miembro, leída
                                              de su archivo de sesión, con los secretos enmascarados y
@@ -192,7 +194,7 @@ const COMMANDS = {
   abrir: { run: (config, opts) => abrir(config, opts.sala, opts.member), texto: abrirTexto, member: 'required' },
   mostrar: { run: (config, opts) => mostrar(config, opts.sala, opts.member), texto: mostrarTexto, member: 'required' },
   enviar: { run: (config, opts) => enviar(config, opts.sala, opts.member, opts.order), texto: enviarTexto, member: 'required', order: 'una orden' },
-  esperar: { run: (config, opts) => esperar(config, opts.member), texto: esperarTexto, member: 'required' },
+  esperar: { run: (config, opts) => esperar(config, opts.sala, opts.member), texto: esperarTexto, member: 'required' },
   respuesta: { run: (config, opts) => respuesta(config, opts.member), texto: respuestaTexto, member: 'required' },
   veredicto: { run: (config, opts) => veredicto(config, opts.member, opts.order), texto: veredictoTexto, member: 'required', order: 'un comando' },
   preguntas: { run: (config, opts) => preguntas(config, opts.sala), texto: preguntasTexto },

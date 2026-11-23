@@ -135,7 +135,9 @@ async function enviar(config, salaDir, id, text) {
   }
   const timeoutMs = Number(process.env.SALA_SEND_TIMEOUT_MS) || 10000;
   const res = await sendAction(found.target, 'send_prompt', { text }, { timeoutMs });
-  logOrder(salaDir, { member: id, session: found.session.id, text, result: res.ok ? 'sent' : res.error.code });
+  // What the session had when it took the order: sala esperar knows it started when this moves.
+  const before = { cost: found.session.cost, context: found.session.context };
+  logOrder(salaDir, { member: id, session: found.session.id, text, result: res.ok ? 'sent' : res.error.code, ...(res.ok && { before }) });
   if (!res.ok) throw new SalaError(`${id}: la sesión no aceptó la orden: ${res.error.message} (${res.error.code})`);
   return { member: id, session: found.session.id, sent: true };
 }
@@ -146,9 +148,35 @@ function enviarTexto(r) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Ends when the session is idle for a while (a fresh order may not have started yet),
-// or at once when it needs the person. `waiting` (agents or jobs left) never ends it.
-async function esperar(config, id) {
+// The last order sala enviar delivered to this session, with what the session had then.
+function lastSent(salaDir, id, sessionId) {
+  let lines;
+  try {
+    lines = fs.readFileSync(path.join(salaDir, '.sala', 'ordenes.log'), 'utf8').split('\n');
+  } catch {
+    return null;
+  }
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    let entry;
+    try {
+      entry = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    if (entry && entry.member === id && entry.session === sessionId && entry.result === 'sent') {
+      const b = entry.before;
+      // Without a cost or a context there is nothing to compare: the wait goes as before SK29.
+      const num = (v) => typeof v === 'number' && Number.isFinite(v);
+      return b && typeof b === 'object' && (num(b.cost) || num(b.context)) ? b : null;
+    }
+  }
+  return null;
+}
+
+// Ends when the session is idle for a while, or at once when it needs the person. `waiting`
+// (agents or jobs left) never ends it. After an order (SK29), idle time counts only once the
+// session started it: it worked, asked, or its cost or context moved since the order.
+async function esperar(config, salaDir, id) {
   const member = findMember(config, id);
   const { session: first, target } = onlySession(config, member);
   const snapshotFile = path.join(target.agentDir, 'desktop', 'sessions', `${target.name}.json`);
@@ -156,7 +184,11 @@ async function esperar(config, id) {
   const pollMs = env('SALA_WAIT_POLL_MS', 500);
   const settleMs = env('SALA_WAIT_SETTLE_MS', 3000);
   const timeoutMs = env('SALA_WAIT_TIMEOUT_MS', 30 * 60 * 1000);
+  const startMs = Math.min(env('SALA_WAIT_START_MS', 2 * 60 * 1000), timeoutMs);
   const deadline = Date.now() + timeoutMs;
+  const startDeadline = Date.now() + startMs;
+  const before = lastSent(salaDir, id, first.id);
+  let started = !before;
   let idleSince = null;
   let misses = 0;
   for (;;) {
@@ -173,6 +205,16 @@ async function esperar(config, id) {
     }
     const result = { member: id, session: s.id, state: s.state, label: s.label };
     if (s.state === 'needs-you') return { ...result, question: s.question ? s.question.text : null };
+    if (!started) {
+      started = s.state !== 'idle' || s.cost !== before.cost || s.context !== before.context;
+      if (!started) {
+        if (Date.now() >= startDeadline) {
+          throw new SalaError(`${id}: la sesión ${first.id} no empezó la orden en ${startMs / 1000} s; mirala con sala mostrar ${id}`);
+        }
+        await sleep(pollMs);
+        continue;
+      }
+    }
     idleSince = s.state === 'idle' ? idleSince || Date.now() : null;
     if (idleSince && Date.now() - idleSince >= settleMs) return result;
     if (Date.now() >= deadline) throw new SalaError(`${id}: sigue trabajando después de ${timeoutMs / 1000} s`);

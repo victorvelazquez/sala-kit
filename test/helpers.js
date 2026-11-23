@@ -137,15 +137,23 @@ function feedSala(t) {
     const d = path.join(agentDir, 'desktop', 'inbox', name);
     return fs.existsSync(d) ? fs.readdirSync(d) : [];
   };
-  // Plays Gentle Shell: answers every action left in the inbox and records it.
-  const answer = (name, reply = { ok: true, data: { queued: false } }) => {
+  // Plays Gentle Shell: answers every action left in the inbox and records it. Like a real
+  // session, a prompt it takes moves its cost; `starts: false` plays one that never starts.
+  const answer = (name, reply = { ok: true, data: { queued: false } }, { starts = true } = {}) => {
     const seen = [];
     const timer = setInterval(() => {
       for (const file of inbox(name)) {
         const full = path.join(agentDir, 'desktop', 'inbox', name, file);
-        seen.push(JSON.parse(fs.readFileSync(full, 'utf8')));
+        const action = JSON.parse(fs.readFileSync(full, 'utf8'));
+        seen.push(action);
         fs.rmSync(full);
         fs.writeFileSync(path.join(agentDir, 'desktop', 'outbox', name, file), JSON.stringify(reply));
+        const snap = path.join(agentDir, 'desktop', 'sessions', `${name}.json`);
+        if (starts && action.kind === 'send_prompt' && fs.existsSync(snap)) {
+          const data = JSON.parse(fs.readFileSync(snap, 'utf8'));
+          data.cost = { total: ((data.cost && data.cost.total) || 0) + 0.01 };
+          fs.writeFileSync(snap, JSON.stringify(data));
+        }
       }
     }, 20);
     t.after(() => clearInterval(timer));
