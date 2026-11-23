@@ -223,9 +223,17 @@ Después de mandar un comando, `sala veredicto` comprueba en JSON que haya dejad
 | Comando | Regla | Qué comprueba |
 |---|---|---|
 | `miembro-entregar` (y, de puente, `flow-ship` y `flow-pr`) | `entrega` | está en una rama que no es la base, el árbol está limpio, el último commit está en el remoto, hay un PR abierto de esa rama, su CI está en verde (o no tiene) y la fila de la tarea cuyo ID cierra el título del PR dice `Completada` en el roadmap del último commit (D45) |
-| `miembro-base` (y, de puente, `flow-base`) | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto |
+| `miembro-base` (y, de puente, `flow-base`) | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto; si el miembro tiene `pnpm-lock.yaml` o `package-lock.json`, también que sus dependencias estén instaladas (`deps`, con la regla de `sala dependencias`) |
 
 El comando va con o sin `/`, y lo que sigue al primer espacio no cuenta: `/flow-ship SK2d` es `flow-ship`. Como solo lee, también reconoce el comando cuando Git Bash lo convirtió en ruta (`C:/Program Files/Git/flow-ship`), sin hacer falta `MSYS_NO_PATHCONV=1`. Los nombres de las reglas (`entrega` y `base`) también sirven como comando. Los `/flow-*` son un puente: los miembros los usan hasta que la fase 5 los cambia por los `/miembro-*` (D26), y ahí se quitan. Cada comprobación sale con su `id`, si pasó y el motivo; `ok` es `true` solo si pasan todas. Después de una entrega, el JSON trae también la rama, el commit, el PR con su CI y el ID de la tarea.
+
+## `sala dependencias`
+
+```
+sala dependencias [--instalar] [--texto] [--sala <carpeta>]
+```
+
+En un miembro, después de volver a la base, dice si hay que instalar sus dependencias y, con `--instalar`, las instala. La regla es una sola, y es la misma que usa el veredicto de la base: hay que instalar si falta `node_modules` o si la marca de la última instalación (`node_modules/.modules.yaml` de pnpm, `node_modules/.package-lock.json` de npm) es más vieja que el lockfile. Git reescribe el lockfile solo cuando cambia, así que una base que la fusión no tocó no instala nada. El gestor sale del lockfile: `pnpm-lock.yaml` corre `pnpm install --frozen-lockfile` y `package-lock.json` corre `npm ci`, sin shell; ninguno reescribe el lockfile. Con dos lockfiles se niega, y si la instalación falla termina con 1 y su error. Sin lockfile, o con un `package.json` que no declara dependencias fuera de un workspace, no hace nada. Con `yarn.lock` solo avisa: el kit todavía no instala con yarn. En Windows corre el gestor por `cmd.exe` sin buscarlo en la carpeta del miembro (`NoDefaultCurrentDirectoryInExePath`). `/miembro-base` lo corre al final.
 
 ## `sala fusionar`
 
