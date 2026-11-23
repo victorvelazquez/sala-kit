@@ -68,9 +68,10 @@ Uso:
   sala condiciones <miembro> [--texto] [--sala <carpeta>]
                                              le manda al miembro, con las guardas de sala enviar, la
                                              orden de cumplir los requisitos que le faltan
-  sala unirse [--texto] [--sala <carpeta>]   en un miembro: pone el bloque del miembro en su AGENTS.md;
-                                             nunca pisa: si tiene reglas propias sin las marcas, lo
-                                             deja en AGENTS.md.sugerido
+  sala unirse [--texto] [--sala <carpeta>]   en un miembro: pone al día su AGENTS.md solo entre las
+                                             marcas: el bloque del miembro (al final, si falta) y los
+                                             bloques viejos panel:tareas, panel:entrega y
+                                             orquestacion:ciclo; fuera de las marcas no cambia nada
   sala abrir <miembro> [--texto] [--sala <carpeta>]
                                              reusa la sesión viva del miembro o abre una nueva en Orca
                                              o en Windows Terminal (options.launcher), espera a que

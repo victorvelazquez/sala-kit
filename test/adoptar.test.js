@@ -150,41 +150,36 @@ test('sala soltar takes the member and its pinned tasks out of sala.json, withou
   assert.deepEqual(JSON.parse(read(sala, 'sala.json')), after);
 });
 
-test('sala unirse puts the member block in AGENTS.md without ever overwriting (D41)', (t) => {
+test('sala unirse puts the member block in AGENTS.md, adding it after the own rules (D41, D52)', (t) => {
   const dir = tempDir(t);
   const fresh = path.join(dir, 'fresh');
   fs.mkdirSync(fresh);
 
   const res = runSala(fresh, ['unirse']);
   assert.equal(res.code, 0, res.stderr);
-  assert.deepEqual(JSON.parse(res.stdout), { dir: fresh, created: ['AGENTS.md'], skipped: [], warnings: [] });
+  assert.deepEqual(JSON.parse(res.stdout), { dir: fresh, created: ['AGENTS.md'], updated: [], skipped: [], warnings: [] });
   const agents = read(fresh, 'AGENTS.md');
   assert.ok(agents.indexOf(START) < agents.indexOf(END) && agents.indexOf(START) > 0);
   assert.equal(JSON.parse(runSala(fresh, ['donde']).stdout).kind, 'miembro');
 
   const again = JSON.parse(runSala(fresh, ['unirse']).stdout);
-  assert.deepEqual(again.skipped, [{ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro' }]);
+  assert.deepEqual(again.skipped, [{ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro y los bloques al día' }]);
   assert.equal(read(fresh, 'AGENTS.md'), agents);
 
   const own = path.join(dir, 'own');
   fs.mkdirSync(own);
   fs.writeFileSync(path.join(own, 'AGENTS.md'), '# Reglas\n\n- Nunca abras un PR.\n');
   const out = JSON.parse(runSala(own, ['unirse']).stdout);
-  assert.deepEqual(out.created, ['AGENTS.md.sugerido']);
-  assert.equal(out.warnings.length, 1);
-  assert.match(out.warnings[0], /AGENTS\.md ya tiene reglas propias/);
-  assert.equal(read(own, 'AGENTS.md'), '# Reglas\n\n- Nunca abras un PR.\n');
-  assert.ok(read(own, 'AGENTS.md.sugerido').includes(START));
-  fs.writeFileSync(path.join(own, 'AGENTS.md.sugerido'), 'editado\n');
-  assert.equal(runSala(own, ['unirse']).code, 0);
-  assert.equal(read(own, 'AGENTS.md.sugerido'), 'editado\n');
+  assert.deepEqual(out, { dir: own, created: [], updated: ['miembro'], skipped: [], warnings: [] });
+  assert.equal(read(own, 'AGENTS.md'), `# Reglas\n\n- Nunca abras un PR.\n\n${agents.slice(agents.indexOf(START))}`);
+  assert.deepEqual(fs.readdirSync(own), ['AGENTS.md']);
 
   const half = path.join(dir, 'half');
   fs.mkdirSync(half);
   fs.writeFileSync(path.join(half, 'AGENTS.md'), `# Reglas\n${START}\nsin fin\n`);
   const broken = runSala(half, ['unirse']);
   assert.equal(broken.code, 1);
-  assert.match(JSON.parse(broken.stderr).error, /una sola marca del bloque del miembro/);
+  assert.match(JSON.parse(broken.stderr).error, /marcas del bloque del miembro repetidas, sin cerrar o al revés/);
   assert.deepEqual(fs.readdirSync(half), ['AGENTS.md']);
 
   const sala = path.join(dir, 'sala');
