@@ -106,9 +106,12 @@ function adoptarTexto(r) {
 // Takes the member out of sala.json, with its pinned tasks; its repository is never touched.
 function soltar(config, salaDir, id) {
   const member = findMember(config, id);
+  // A lane (D57) shares the prefix of its member: its pinned tasks stay with the member.
+  const lanes = config.members.filter((m) => m.lane && m.lane.of === id).map((m) => m.id);
+  if (lanes.length) throw new ConfigError(`${id} tiene carriles (${lanes.join(', ')}): soltalos primero`);
   const raw = readRaw(salaDir);
   const next = { ...raw, members: raw.members.filter((m) => m.id !== id) };
-  const unpinned = (raw.pinned || []).filter((t) => t.startsWith(`${member.prefix}-`));
+  const unpinned = member.lane ? [] : (raw.pinned || []).filter((t) => t.startsWith(`${member.prefix}-`));
   if (raw.pinned) next.pinned = raw.pinned.filter((t) => !unpinned.includes(t));
   writeRaw(salaDir, next);
   return { member: id, path: member.path, unpinned };

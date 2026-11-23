@@ -38,9 +38,10 @@ function inReview(row, m) {
   });
 }
 
-// A task waits only on rows that are not Completada on the remote base.
+// A task waits only on rows that are not Completada on the remote base. A member takes only
+// its own rows: with lanes (D57), each row of the shared roadmap belongs to one of them.
 function openTasks(m, byPrefix) {
-  return m.read.rows.filter((row) => row.estado !== 'Completada').map((row) => {
+  return (m.own || m.read.rows).filter((row) => row.estado !== 'Completada').map((row) => {
     const t = { m, row, deps: [], unresolved: [], status: null };
     if (row.estado !== 'Bloqueada') {
       if (inReview(row, m)) t.status = 'en revisión';

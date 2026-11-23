@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { feedSala, runAsync, memberRepo, pushRoadmap, roadmap } = require('./helpers');
+const { feedSala, runAsync, memberRepo, pushRoadmap, roadmap, writeSala, salaConfig, git } = require('./helpers');
 
 const FAKE_GH = path.join(__dirname, 'fixtures', 'fake-gh-merge.js');
 const SHA = 'a'.repeat(40);
@@ -192,6 +192,40 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
     { id: 'next', ok: false, detail: 'la tarea siguiente no tiene un ID válido; no se pide' },
   ]);
   assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-base']);
+});
+
+test('after a merge the next task of a member with a lane is one of its own rows, never one of the lane (D57)', async (t) => {
+  const s = setup(t, [['E1', '—', 'Completada'], ['P1', '—', 'Pendiente'], ['E2', '—', 'Pendiente']]);
+  const screens = path.join(s.dir, 'core-pantallas');
+  git(s.dir, 'clone', '--quiet', path.join(s.dir, 'core.git'), screens);
+  writeSala(s.dir, salaConfig([
+    { id: 'core', prefix: 'CORE', path: s.core.work, base: 'main' },
+    { id: 'core-pantallas', path: screens, base: 'main', lane: { of: 'core', rows: ['P1'] } },
+  ]));
+  s.session('c1', s.core.work);
+  const seen = s.answer('c1');
+
+  const res = await runAsync(s.dir, ['fusionar', 'core', '3'], s.env);
+
+  assert.equal(res.code, 0, res.stderr);
+  assert.deepEqual(JSON.parse(res.stdout).steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2' });
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-tarea E2']);
+
+  // Merged in the lane, the next task is a row of the lane, though E2 comes first in the table.
+  pushRoadmap(s.core.work, roadmap([['E1', '—', 'Completada'], ['P1', '—', 'Completada'], ['E2', '—', 'Pendiente'], ['P3', '—', 'Pendiente']]));
+  writeSala(s.dir, salaConfig([
+    { id: 'core', prefix: 'CORE', path: s.core.work, base: 'main' },
+    { id: 'core-pantallas', path: screens, base: 'main', lane: { of: 'core', rows: ['P1', 'P3'] } },
+  ]));
+  git(screens, 'pull', '--quiet', 'origin', 'main');
+  s.session('p1', screens);
+  const lane = s.answer('p1');
+
+  const merged = await runAsync(s.dir, ['fusionar', 'core-pantallas', '3'], s.env);
+
+  assert.equal(merged.code, 0, merged.stderr);
+  assert.deepEqual(JSON.parse(merged.stdout).steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea P3' });
+  assert.deepEqual(lane.map((a) => a.args.text), ['/miembro-base', '/miembro-tarea P3']);
 });
 
 test('the chain stops at its time cap and no secret reaches the output or the log', async (t) => {
