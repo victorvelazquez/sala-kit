@@ -113,7 +113,7 @@ async function merge(ctx) {
 async function backToBase(ctx) {
   const { config, salaDir, member } = ctx;
   const sent = await enviar(config, salaDir, member.id, BASE_ORDER);
-  const done = await esperar(config, member.id);
+  const done = await esperar(config, salaDir, member.id);
   if (done.state === 'needs-you') {
     throw new StepError(`${member.id} te necesita${done.question ? `: «${done.question}»` : ''}; contestale y corré la puerta`);
   }

@@ -194,6 +194,20 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
   assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-base']);
 });
 
+test('a member that never starts /miembro-base stops the chain at base, with no next task asked (SK29)', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core.work, { cost: { total: 0.5 } });
+  const seen = s.answer('c1', undefined, { starts: false });
+
+  const res = await runAsync(s.dir, ['fusionar', 'core', '3'], { ...s.env, SALA_WAIT_START_MS: '600' });
+
+  assert.equal(res.code, 1);
+  const out = JSON.parse(res.stdout);
+  assert.equal(out.stoppedAt, 'base');
+  assert.deepEqual(out.steps.at(-1), { id: 'base', ok: false, detail: 'core: la sesión id-c1 no empezó la orden en 0.6 s; mirala con sala mostrar core' });
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base']);
+});
+
 test('after a merge the next task of a member with a lane is one of its own rows, never one of the lane (D57)', async (t) => {
   const s = setup(t, [['E1', '—', 'Completada'], ['P1', '—', 'Pendiente'], ['E2', '—', 'Pendiente']]);
   const screens = path.join(s.dir, 'core-pantallas');

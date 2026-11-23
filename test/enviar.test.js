@@ -23,7 +23,7 @@ test('sala enviar leaves send_prompt in the member session inbox and logs the or
   // The order is logged before it goes: one that cannot be logged is never sent.
   assert.deepEqual(s.log().map(({ at, ...rest }) => ({ ...rest, at: typeof at })), [
     { member: 'core', session: 'id-c1', text: '/flow-avance', result: 'sending', at: 'string' },
-    { member: 'core', session: 'id-c1', text: '/flow-avance', result: 'sent', at: 'string' },
+    { member: 'core', session: 'id-c1', text: '/flow-avance', result: 'sent', before: { cost: null, context: null }, at: 'string' },
   ]);
 });
 
@@ -217,4 +217,127 @@ test('sala esperar wakes the sala when the member asks something, and fails when
   const none = await runAsync(s.dir, ['esperar', 'core'], s.env);
   assert.equal(none.code, 1);
   assert.deepEqual(JSON.parse(none.stderr), { error: 'core: no tiene una sesión viva; corré sala abrir core' });
+});
+
+// SK29: after an order, sala esperar waits for the session to start it before counting idle time.
+test('after an order, sala esperar waits for a session that starts late and only then ends', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core, { cost: { total: 0.5 }, context: { percent: 7 } });
+  s.answer('c1', undefined, { starts: false });
+  assert.equal((await runAsync(s.dir, ['enviar', 'core', '/miembro-tarea E1'], s.env)).code, 0);
+  // The sent line keeps what the session had when it took the order.
+  const sent = s.log().at(-1);
+  assert.deepEqual({ result: sent.result, before: sent.before }, { result: 'sent', before: { cost: 0.5, context: 7 } });
+  let finished = false;
+  setTimeout(() => s.session('c1', s.core, { activity: { state: 'working', label: 'Working' }, cost: { total: 0.6 }, context: { percent: 9 } }), 900);
+  setTimeout(() => {
+    s.session('c1', s.core, { cost: { total: 0.7 }, context: { percent: 10 } });
+    finished = true;
+  }, 1300);
+
+  const res = await runAsync(s.dir, ['esperar', 'core', '--texto'], s.env);
+
+  assert.equal(res.code, 0, res.stderr);
+  assert.equal(res.stdout, 'core: terminó (sesión id-c1, libre)\n');
+  assert.equal(finished, true, 'it did not end before the session started and finished the order');
+});
+
+test('after an order, a session that never starts it is reported, not taken as finished', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core, { cost: { total: 0.5 } });
+  s.answer('c1', undefined, { starts: false });
+  assert.equal((await runAsync(s.dir, ['enviar', 'core', '/miembro-tarea E1'], s.env)).code, 0);
+
+  const res = await runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '600' });
+
+  assert.equal(res.code, 1);
+  assert.equal(res.stdout, '');
+  assert.deepEqual(JSON.parse(res.stderr), { error: 'core: la sesión id-c1 no empezó la orden en 0.6 s; mirala con sala mostrar core' });
+});
+
+test('sala esperar after the member already did the order ends at once, and without a logged order it is as before', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core, { cost: { total: 0.5 } });
+  s.answer('c1');
+  assert.equal((await runAsync(s.dir, ['enviar', 'core', '/miembro-tarea E1'], s.env)).code, 0);
+  // The cost moved after the order: the session took it, even if it is idle now.
+  const done = await runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '600' });
+  assert.equal(done.code, 0, done.stderr);
+  assert.deepEqual(JSON.parse(done.stdout), { member: 'core', session: 'id-c1', state: 'idle', label: 'Idle' });
+
+  // An order sent by hand leaves no line: the wait counts idle time at once, as before SK29.
+  fs.rmSync(path.join(s.dir, '.sala', 'ordenes.log'));
+  s.session('c1', s.core, { cost: { total: 0.5 } });
+  const manual = await runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '600' });
+  assert.equal(manual.code, 0, manual.stderr);
+  assert.equal(JSON.parse(manual.stdout).state, 'idle');
+});
+
+test('a feed without cost or context gives esperar nothing to compare: it waits as before, never a false «no empezó»', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core);
+  s.answer('c1', undefined, { starts: false });
+  assert.equal((await runAsync(s.dir, ['enviar', 'core', '/miembro-tarea E1'], s.env)).code, 0);
+  assert.deepEqual(s.log().at(-1).before, { cost: null, context: null });
+
+  const res = await runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '600' });
+
+  assert.equal(res.code, 0, res.stderr);
+  assert.equal(JSON.parse(res.stdout).state, 'idle');
+});
+
+test('the start cap never goes past the total cap of sala esperar', async (t) => {
+  const s = setup(t);
+  s.session('c1', s.core, { cost: { total: 0.5 } });
+  s.answer('c1', undefined, { starts: false });
+  assert.equal((await runAsync(s.dir, ['enviar', 'core', '/miembro-tarea E1'], s.env)).code, 0);
+
+  const res = await runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '2500', SALA_WAIT_TIMEOUT_MS: '500' });
+
+  assert.equal(res.code, 1);
+  assert.deepEqual(JSON.parse(res.stderr), { error: 'core: la sesión id-c1 no empezó la orden en 0.5 s; mirala con sala mostrar core' });
+});
+
+test('only the last order delivered to that very session counts, and a broken log line hides nothing', async (t) => {
+  const s = setup(t);
+  const file = path.join(s.dir, '.sala', 'ordenes.log');
+  const line = (extra) => JSON.stringify({ at: 'x', member: 'core', session: 'id-c1', text: '/miembro-tarea E1', ...extra });
+  const wait = () => runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '600' });
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  s.session('c1', s.core, { cost: { total: 0.5 }, context: { percent: 7 } });
+
+  // Orders to another session, or not delivered, never hold the wait.
+  fs.writeFileSync(file, [
+    line({ session: 'id-c2', result: 'sent', before: { cost: 0.5, context: 7 } }),
+    line({ result: 'refused', before: { cost: 0.5, context: 7 } }),
+    line({ result: 'timeout', before: { cost: 0.5, context: 7 } }),
+    line({ result: 'sending', before: { cost: 0.5, context: 7 } }),
+    '',
+  ].join('\n'));
+  const others = await wait();
+  assert.equal(others.code, 0, others.stderr);
+
+  // A delivered order the session did not start stays the one that counts, past broken lines.
+  fs.writeFileSync(file, [line({ result: 'sent', before: { cost: 0.5, context: 7 } }), '{"at":', 'null', '"texto"', '[1]', ''].join('\n'));
+  const pending = await wait();
+  assert.equal(pending.code, 1);
+  assert.deepEqual(JSON.parse(pending.stderr), { error: 'core: la sesión id-c1 no empezó la orden en 0.6 s; mirala con sala mostrar core' });
+
+  // A session that works without moving its cost or context started the order: it ends after it.
+  let back = false;
+  setTimeout(() => s.session('c1', s.core, { activity: { state: 'working', label: 'Working' }, cost: { total: 0.5 }, context: { percent: 7 } }), 300);
+  setTimeout(() => { s.session('c1', s.core, { cost: { total: 0.5 }, context: { percent: 7 } }); back = true; }, 700);
+  const worked = await runAsync(s.dir, ['esperar', 'core'], { ...s.env, SALA_WAIT_START_MS: '5000' });
+  assert.equal(worked.code, 0, worked.stderr);
+  assert.equal(back, true);
+});
+
+test('a cost or context that is not a number is logged as null, so nothing but numbers reaches the log', async (t) => {
+  const s = setup(t);
+  const token = `ghp_${'x'.repeat(36)}`;
+  s.session('c1', s.core, { cost: { total: token }, context: { percent: token } });
+  s.answer('c1', undefined, { starts: false });
+  assert.equal((await runAsync(s.dir, ['enviar', 'core', '/miembro-tarea E1'], s.env)).code, 0);
+  assert.deepEqual(s.log().at(-1).before, { cost: null, context: null });
+  assert.equal(fs.readFileSync(path.join(s.dir, '.sala', 'ordenes.log'), 'utf8').includes(token), false);
 });
