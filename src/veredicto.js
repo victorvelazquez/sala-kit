@@ -8,6 +8,7 @@ const { run, redact, gitError } = require('./run');
 const { parseRoadmap } = require('./roadmap');
 const { openPrs } = require('./estado');
 const { findMember, SalaError } = require('./abrir');
+const { depsCheck } = require('./dependencias');
 
 const OUTPUT_SCHEMA = 1;
 const ROADMAP = 'docs/ROADMAP.md';
@@ -86,7 +87,8 @@ async function baseVerdict(member, git, branch) {
     else if (ahead || behind) synced = check('synced', false, `${base} tiene ${ahead} commits sin subir y está ${behind} detrás de ${remote}/${base}`);
     else synced = check('synced', true, `${base} igual a ${remote}/${base}`);
   }
-  return { branch, checks: [onBase, tree.clean, tree.stash, synced] };
+  const deps = depsCheck(member.path);
+  return { branch, checks: [onBase, tree.clean, tree.stash, synced, ...(deps ? [deps] : [])] };
 }
 
 // The row of the task named at the end of the PR title, in the roadmap of the delivered commit.

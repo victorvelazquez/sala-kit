@@ -11,4 +11,5 @@ Correr este comando es el OK de la persona para cambiar de rama y traer la base 
 3. **La base.** Es la rama que nombra `git symbolic-ref --short refs/remotes/origin/HEAD`, sin el `origin/`. Si no se puede saber, preguntala con `ask_user_choice` y esperá.
 4. **Volver.** Corré `git fetch --prune origin`, `git switch <base>` y `git merge --ff-only origin/<base>`. Si el avance no es rápido (la base local tiene commits propios), detenete y decilo: no lo arregles por tu cuenta.
 5. **Comprobar.** El árbol está limpio, sin stash, y `git rev-parse <base>` es igual a `git rev-parse origin/<base>`. Si la rama de la tarea anterior quedó en local, nombrala, pero no la borres.
-6. **Cierre.** Decí la base y su commit. Terminá con una línea: `Siguiente: la tarea siguiente del roadmap`.
+6. **Dependencias.** Corré `sala dependencias --instalar --texto`. Instala solo si falta `node_modules` o si el lockfile cambió después de la última instalación, y nunca reescribe el lockfile. Mostrá su salida tal cual. Si falla, mostrá el error y detenete: no lo arregles por tu cuenta ni instales de otra forma.
+7. **Cierre.** Decí la base, su commit y si se instalaron dependencias. Terminá con una línea: `Siguiente: la tarea siguiente del roadmap`.

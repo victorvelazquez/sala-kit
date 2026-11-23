@@ -11,6 +11,7 @@ const { enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto } 
 const { veredicto, veredictoTexto } = require('../src/veredicto');
 const { preguntas, preguntasTexto, responder, responderTexto } = require('../src/responder');
 const { init, initTexto, donde, dondeTexto } = require('../src/init');
+const { dependencias, dependenciasTexto } = require('../src/dependencias');
 const { fusionar, fusionarTexto } = require('../src/fusionar');
 const { reiniciar, reiniciarTexto, modelo, modeloTexto } = require('../src/reiniciar');
 const { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condiciones, condicionesTexto } = require('../src/adoptar');
@@ -72,6 +73,11 @@ Uso:
                                              marcas: el bloque del miembro (al final, si falta) y los
                                              bloques viejos panel:tareas, panel:entrega y
                                              orquestacion:ciclo; fuera de las marcas no cambia nada
+  sala dependencias [--instalar] [--texto] [--sala <carpeta>]
+                                             en un miembro: dice si hay que instalar sus dependencias
+                                             (falta node_modules o el lockfile cambió después de la
+                                             última instalación) y, con --instalar, corre pnpm install
+                                             --frozen-lockfile o npm ci; si nada cambió, no instala
   sala abrir <miembro> [--texto] [--sala <carpeta>]
                                              reusa la sesión viva del miembro o abre una nueva en Orca
                                              o en Windows Terminal (options.launcher), espera a que
@@ -155,6 +161,7 @@ Opciones:
   --retomar          con estado: el resumen corto, sin git
   --pregunta <id>    con responder: el id de la pregunta que mostró sala preguntas
   --forzar           con instalar: reemplaza también la copia editada o ajena
+  --instalar         con dependencias: corre la instalación cuando hace falta
   --minutos <n>      con pausar: la pausa vence sola a los n minutos (hasta 1440)
   --hora <HH:MM>     con agendar: la hora del plan del día (por defecto, 08:00)
   --id, --prefijo, --base, --remoto
@@ -171,6 +178,7 @@ const COMMANDS = {
   // It reads sala.json by itself: an old one may not pass loadConfig until it is migrated.
   actualizar: { run: (opts) => actualizar(opts.sala), texto: actualizarTexto, noConfig: true },
   unirse: { run: (opts) => unirse(opts.sala), texto: unirseTexto, noConfig: true },
+  dependencias: { run: (opts) => dependencias(opts.sala, { instalar: opts.instalar }), texto: dependenciasTexto, noConfig: true },
   adoptar: { run: (config, opts) => adoptar(config, opts.sala, opts.member, opts.adopt), texto: adoptarTexto, member: 'required', memberLabel: 'una carpeta' },
   soltar: { run: (config, opts) => soltar(config, opts.sala, opts.member), texto: soltarTexto, member: 'required' },
   condiciones: { run: (config, opts) => condiciones(config, opts.sala, opts.member), texto: condicionesTexto, member: 'required' },
@@ -222,7 +230,7 @@ function fail(error, details) {
 const ADOPT_FLAGS = { '--id': 'id', '--prefijo': 'prefijo', '--base': 'base', '--remoto': 'remoto' };
 
 function parseArgs(argv) {
-  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, hora: null, adopt: {}, texto: false, retomar: false, forzar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
+  const opts = { command: null, member: null, order: null, pregunta: null, minutos: null, hora: null, adopt: {}, texto: false, retomar: false, forzar: false, instalar: false, cerrar: false, primerPlano: false, sala: process.cwd() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--texto') opts.texto = true;
@@ -233,6 +241,7 @@ function parseArgs(argv) {
     }
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
     else if (arg === '--forzar' && opts.command === 'instalar') opts.forzar = true;
+    else if (arg === '--instalar' && opts.command === 'dependencias') opts.instalar = true;
     else if (arg === '--cerrar' && opts.command === 'hospedar') opts.cerrar = true;
     else if (arg === '--primer-plano' && opts.command === 'hospedar') opts.primerPlano = true;
     else if (arg === '--pregunta' && opts.command === 'responder') {
