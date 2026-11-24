@@ -45,7 +45,7 @@ Deja el comando `sala` en el `PATH` apuntando a este repo, así que actualizar e
 | `/sala-orden <miembro> <orden>` | Manda la orden tal cual con `sala enviar` y espera a que el miembro termine o te necesite |
 | `/sala-entregar <miembro>` | Le pide la entrega con `/miembro-entregar`, espera y muestra el veredicto |
 | `/sala-seguir <miembro>` | Comprueba que esté en su base y le pide la tarea siguiente con `/miembro-tarea`. No es `sala seguir`, que levanta una pausa |
-| `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19) |
+| `/sala-fusionar <miembro> <n>` | Fusiona el PR #n del miembro con `sala fusionar` y muestra cada paso. Escribirlo con el número es el OK para ese PR, y solo ese (D19). Si le pidió una tarea, sigue con `sala esperar`: la pregunta del miembro sobre esa tarea aparece en la sala, o su respuesta cuando termina (SK26) |
 | `/sala-avanzar` | Corre `sala proximo` y muestra el paso de cada miembro numerado, en una sola pregunta; corre solo los números que aprobás (aprobar una fusión es el OK para ese PR, D19), espera y vuelve a mostrar la lista. No ofrece fusionar un PR cuyo veredicto falló |
 | `/sala-adoptar [carpetas]` | Adopta las carpetas con `sala adoptar`, las revisa y, con tu OK por miembro, le manda la orden de ponerse en condiciones (`sala condiciones`) |
 | `/sala-soltar <miembro>` | Con tu OK, saca al miembro de la sala con `sala soltar`; su repositorio queda igual |
