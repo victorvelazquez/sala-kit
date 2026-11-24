@@ -367,7 +367,7 @@ Revisa el catálogo de requisitos en cada miembro, o solo en `miembro` (su `id`)
 
 Un secreto (token de GitHub, clave `sk-`, clave de AWS, clave privada o URL con usuario y clave) se informa con su tipo, el archivo y la línea; **nunca** se muestra el texto encontrado. Un `miembro` que no está en `sala.json` es un error.
 
-Cada miembro trae también `warnings`: avisos que no hacen fallar, como un bloque del catálogo en una versión más nueva que la del kit, que cumple `old-blocks` y no se toca.
+Cada miembro trae también `warnings`: avisos que no hacen fallar, como un bloque del catálogo en una versión más nueva que la del kit, que cumple `old-blocks` y no se toca, o una fila de tareas fuera de la tabla de `docs/ROADMAP.md` (después de un párrafo o en una segunda tabla), con su línea y la orden de moverla adentro: la sala lee solo la tabla, así que `sala plan` y `sala veredicto` no la verían (SK25). Cuenta como fila una línea con las columnas de la tabla y un estado válido en `Estado`; otra tabla no avisa.
 
 `kit.agents` dice cómo está en esta máquina cada agente del kit: `al-dia`, `falta`, `vieja`, `editada`, `ajena` o `sin-gentle-shell` (no hay `~/.gentle-shell/agent`: no avisa), con la orden que lo arregla (`sala instalar` o `sala instalar --forzar`). También es un aviso: no hace fallar y `sala revisar` nunca instala nada.
 

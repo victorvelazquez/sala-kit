@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { run, gitError } = require('./run');
 const { ConfigError } = require('./config');
-const { memberRequirements, oldBlocks, noSecrets, REQUIREMENT_IDS } = require('./requisitos');
+const { memberRequirements, oldBlocks, strayWarnings, noSecrets, REQUIREMENT_IDS } = require('./requisitos');
 const { agentWarnings, agentWarningText } = require('./instalar');
 const { contractCheck, contractText } = require('./contrato');
 
@@ -47,7 +47,7 @@ async function reviewMember(member) {
     readFile(member.path, ref, 'AGENTS.md'),
   ]);
   const requirements = [base.check, ...memberRequirements({ roadmap, agents }, where)];
-  return { id: member.id, ok: requirements.every((r) => r.ok === true), requirements, warnings: oldBlocks(agents) };
+  return { id: member.id, ok: requirements.every((r) => r.ok === true), requirements, warnings: [...strayWarnings(roadmap), ...oldBlocks(agents)] };
 }
 
 async function revisar(config, salaDir, only) {

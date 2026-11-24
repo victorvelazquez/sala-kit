@@ -76,6 +76,42 @@ test('every failing requirement says why and the order to fix it', (t) => {
   for (const r of failing) assert.equal(typeof r.fix, 'string');
 });
 
+test('a task row outside the table warns with its line and the order to move it; the requirements still pass (SK25)', (t) => {
+  const dir = tempDir(t);
+  const core = memberRepo(dir, 'core');
+  const roadmap = [
+    '# Hoja de ruta', '', HEADER, TABLE, '',
+    'Orden de ejecución: primero E1.', '',
+    '| M-SALA | Nueva | Se ve | — | Pendiente |  | — |', '',
+    '| ID | Entrega | Resultado visible | Depende de | Estado | Notas | Ficha |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| E9 | Segunda tabla | Se ve | — | En curso |  | — |', '',
+    // Another table is not a task row: other columns, or a cell that is not a state.
+    '| Decisión | Fecha |', '| --- | --- |', '| D1 | hoy |',
+    '| X1 | a | b | c | quizás | d | e |', '',
+  ].join('\n');
+  pushFiles(core.work, { ...GOOD, 'docs/ROADMAP.md': roadmap });
+  writeSala(dir, salaConfig([member('core', core.work)]));
+
+  const res = runSala(dir, ['revisar']);
+  assert.equal(res.code, 0, res.stderr);
+  const m = JSON.parse(res.stdout).members[0];
+  assert.equal(m.ok, true);
+  assert.ok(m.requirements.every((r) => r.ok === true));
+  const fix = 'movela adentro de la tabla de tareas, junto a las otras filas: la sala no lee las filas de afuera';
+  const warnings = [
+    `docs/ROADMAP.md tiene la fila M-SALA fuera de la tabla de tareas (línea 13); ${fix}`,
+    `docs/ROADMAP.md tiene la fila E9 fuera de la tabla de tareas (línea 17); ${fix}`,
+  ];
+  assert.deepEqual(m.warnings, warnings);
+  const text = runSala(dir, ['revisar', '--texto']).stdout;
+  for (const w of warnings) assert.ok(text.includes(`  aviso: ${w}\n`), text);
+
+  // A roadmap with every row inside its table warns about nothing.
+  pushFiles(core.work, GOOD);
+  assert.deepEqual(JSON.parse(runSala(dir, ['revisar']).stdout).members[0].warnings, []);
+});
+
 test('a secret is reported by file, line and kind, and never printed', (t) => {
   const dir = tempDir(t);
   const core = memberRepo(dir, 'core');
