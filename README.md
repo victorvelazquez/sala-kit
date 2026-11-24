@@ -376,7 +376,7 @@ Cada miembro trae también `warnings`: avisos que no hacen fallar, como un bloqu
 ## Adoptar y soltar miembros
 
 ```
-sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>] [--texto] [--sala <carpeta>]
+sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>] [--probar] [--texto] [--sala <carpeta>]
 sala soltar <miembro> [--texto] [--sala <carpeta>]
 sala condiciones <miembro> [--texto] [--sala <carpeta>]
 sala unirse [--de <sala>] [--texto] [--sala <carpeta>]
@@ -389,8 +389,9 @@ sala unirse [--de <sala>] [--texto] [--sala <carpeta>]
   - la `base`, de la rama por defecto del remoto (`origin/HEAD`, la que deja `git clone`).
 
   Se niega con una carpeta que no existe, que no es la raíz de un repositorio, que es una sala o que ya es miembro. También se niega, con «upen-brand ya es miembro de la sala upen», si el bloque del miembro de su `AGENTS.md` nombra otra sala: un repositorio es miembro de una sola sala (D56). También se niega si no puede deducir un dato o si el resultado no valida. En todos esos casos, `sala.json` queda como estaba. **Nunca escribe en el miembro:** solo avisa si le falta el bloque del miembro, si su bloque no nombra ninguna sala o si tiene `panel:entrega`.
+  Con `--probar` deduce, valida y se niega igual, pero no escribe `sala.json`: devuelve el miembro que sumaría (`dryRun: true`), `seen`, los prefijos que aparecen en las dependencias de los roadmaps de los otros miembros (por ejemplo `WEB` por `WEB-W13`), con en cuáles, y que todavía no son de ningún miembro, y `suggested`, el id y el prefijo propuestos cuando uno de esos prefijos es una parte del id deducido (`upen-web` → `web` y `WEB`), o `null`. Los roadmaps se leen de la base de cada miembro como está en esta máquina, sin `fetch`. `/sala-adoptar` lo corre primero y pregunta antes de escribir (SK30).
 - `sala soltar` saca al miembro de `sala.json`, junto con sus tareas de `pinned`, sin tocar su repositorio.
-- `sala condiciones` revisa al miembro y le manda por `sala enviar`, con sus guardas y su registro, la orden de cumplir lo que falta: un requisito por línea con su orden. Si la base o el remoto fallan, no manda nada, porque eso se corrige en `sala.json`. Si cumple todo, tampoco. Si el bloque del miembro nombra otra sala, se niega: esa sala es la única que le manda órdenes (D56).
+- `sala condiciones` revisa al miembro y le manda por `sala enviar`, con sus guardas y su registro, la orden de cumplir lo que falta: un requisito por línea con su orden. Si la base o el remoto fallan, no manda nada, porque eso se corrige en `sala.json`. Si cumple todo, tampoco. Cuando manda la orden, el JSON trae `next`: el paso siguiente, cuando el miembro termina, es `/sala-entregar <miembro>`, porque el miembro no entrega solo. Si el bloque del miembro nombra otra sala, se niega: esa sala es la única que le manda órdenes (D56).
 - `sala unirse` corre **en el miembro**, en una tarea propia: pone al día su `AGENTS.md`, siempre **solo entre las marcas** (D41, D52):
   - si `AGENTS.md` no existe, lo crea con el bloque del miembro (`templates/miembro/bloque.md`);
   - si no tiene el bloque del miembro, lo agrega al final; si lo tiene viejo, lo reemplaza entre sus marcas;
