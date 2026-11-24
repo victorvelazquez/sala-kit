@@ -238,6 +238,7 @@ async function condiciones(config, salaDir, id) {
   const member = findMember(config, id);
   const review = await reviewMember(member, config.name);
   const [base] = review.requirements;
+  if (base.ok === null) throw new SalaError(`${id}: ${base.detail.replace(/: /, '; volvé a intentarlo: ')}`);
   if (base.ok !== true) throw new SalaError(`${id}: primero corregí la base y el remoto en sala.json: ${base.detail}`);
   // D56: the block, read from the remote base, names another sala; only that sala sends it orders.
   const other = /^el bloque del miembro es de la sala (.+), no de /.exec(review.requirements.find((r) => r.id === 'member-block').detail);

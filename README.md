@@ -356,7 +356,7 @@ Revisa el catálogo de requisitos en cada miembro, o solo en `miembro` (su `id`)
 
 | Requisito | Qué pide |
 |---|---|
-| `base-remote` | La carpeta existe, tiene el remoto de `sala.json` y la rama base está en ese remoto |
+| `base-remote` | La carpeta existe, tiene el remoto de `sala.json` y la rama base está en ese remoto. Si el `fetch` falla por otra cosa que una rama que no existe (la red, el alojamiento), reintenta una vez; si sigue fallando, `base-remote` sale con `ok: null` y «no se pudo leer la base remota», el miembro con `ok: null` y los demás requisitos sin comprobar: no es un requisito que falla. Con `--texto` dice «no se pudo leer la base remota …; volvé a correr sala revisar» en vez de «cumple 0/8», y `sala condiciones` se niega pidiendo volver a intentarlo (SK31) |
 | `roadmap-table` | `docs/ROADMAP.md` con la tabla de Orquestación 1.0 |
 | `roadmap-header` | Las tres líneas de cabecera: `**Dónde está:**`, `**Qué sigue:**` y `**Qué lo bloquea:**` |
 | `roadmap-states` | Cada `Estado` es `Pendiente`, `En curso`, `Completada` o `Bloqueada` |

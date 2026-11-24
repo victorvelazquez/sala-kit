@@ -25,9 +25,17 @@ async function baseRemote(member) {
   if ((await git('remote', 'get-url', remote)).code !== 0) {
     return fail(`el repositorio no tiene el remoto ${remote}`, `Agregá el remoto ${remote} (git remote add ${remote} <url>) o corregí members[].remote en sala.json.`);
   }
-  const fetch = await git('fetch', '--quiet', '--no-tags', remote, base);
-  if (fetch.code !== 0) {
+  const fetchBase = () => git('fetch', '--quiet', '--no-tags', remote, base);
+  let fetch = await fetchBase();
+  // A missing branch is a requirement that fails. Anything else (the network, the host) is
+  // retried once and then reported as unread, never as failing (SK31).
+  const missing = () => /couldn't find remote ref/i.test(fetch.stderr);
+  if (fetch.code !== 0 && !missing()) fetch = await fetchBase();
+  if (fetch.code !== 0 && missing()) {
     return fail(`no se pudo traer ${where}: ${gitError(fetch.stderr)}`, `Subí la rama base (git push -u ${remote} ${base}) o corregí members[].base en sala.json.`);
+  }
+  if (fetch.code !== 0) {
+    return { ok: null, check: { id: 'base-remote', ok: null, detail: `no se pudo leer la base remota ${where}: ${gitError(fetch.stderr)}`, fix: null } };
   }
   return { ok: true, check: { id: 'base-remote', ok: true, detail: `${where} existe`, fix: null } };
 }
@@ -40,7 +48,7 @@ async function readFile(dir, ref, file) {
 async function reviewMember(member, sala) {
   const where = `${member.remote}/${member.base}`;
   const base = await baseRemote(member);
-  if (!base.ok) return { id: member.id, ok: false, requirements: [base.check, ...unchecked(`no se pudo leer ${where}`)], warnings: [] };
+  if (base.ok !== true) return { id: member.id, ok: base.ok, requirements: [base.check, ...unchecked(`no se pudo leer ${where}`)], warnings: [] };
   const ref = `refs/remotes/${where}`;
   const [roadmap, agents] = await Promise.all([
     readFile(member.path, ref, 'docs/ROADMAP.md'),
@@ -71,6 +79,10 @@ async function revisar(config, salaDir, only) {
 }
 
 function block(lines, label, requirements, warnings = []) {
+  if (requirements[0].id === 'base-remote' && requirements[0].ok === null) {
+    lines.push(`${label}: ${requirements[0].detail.replace(/: [\s\S]*$/, '')}; volvé a correr sala revisar`);
+    return;
+  }
   const passed = requirements.filter((r) => r.ok === true).length;
   lines.push(`${label}: cumple ${passed}/${requirements.length}`);
   for (const r of requirements.filter((x) => x.ok !== true)) {
