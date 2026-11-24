@@ -8,7 +8,8 @@
 // in a file instead, so `close` can remove one, and then the session in
 // FAKE_ORCA_CLOSE_SNAPSHOT ends with it. FAKE_ORCA_CLOSE_ADDS moves another snapshot
 // into FAKE_SNAPSHOT on close, FAKE_ORCA_LIST_TOUCHES creates a file on each list,
-// and FAKE_ORCA_CREATE_FAIL=1 makes create fail.
+// FAKE_ORCA_CREATE_FAIL=1 makes create fail, FAKE_ORCA_SCREEN is the text `read --screen`
+// answers and FAKE_ORCA_READ_FAIL=1 makes read fail.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -52,6 +53,14 @@ if (tool === 'orca') {
     if (process.env.FAKE_ORCA_LIST_TOUCHES) fs.writeFileSync(process.env.FAKE_ORCA_LIST_TOUCHES, '');
     const handles = terminals();
     process.stdout.write(JSON.stringify({ ok: true, result: { terminals: handles.map((handle) => ({ handle })) } }));
+  } else if (group === 'terminal' && verb === 'read') {
+    if (process.env.FAKE_ORCA_READ_FAIL === '1') {
+      process.stderr.write('terminal not found\n');
+      process.exit(1);
+    }
+    const tail = (process.env.FAKE_ORCA_SCREEN || '').split('\n');
+    const handle = args[args.indexOf('--terminal') + 1];
+    process.stdout.write(JSON.stringify({ ok: true, result: { terminal: { handle, status: 'running', tail, source: 'screen', draft: 'no es pantalla' } } }));
   } else if (group === 'terminal' && verb === 'close') {
     const file = process.env.FAKE_ORCA_TERMINALS_FILE;
     if (file) fs.writeFileSync(file, terminals().filter((h) => h !== args[args.indexOf('--terminal') + 1]).join(','));

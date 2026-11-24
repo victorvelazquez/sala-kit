@@ -131,10 +131,89 @@ test('sala abrir keeps the handle when the session never publishes its snapshot'
   assert.equal(res.code, 1);
   assert.equal(res.stdout, '');
   assert.deepEqual(JSON.parse(res.stderr), {
-    error: 'core: se abrió la terminal term_fake1, pero Gentle Shell no publicó su sesión en 0.6 s',
+    error: 'core: se abrió la terminal term_fake1, pero Gentle Shell no publicó su sesión en 0.6 s; su pantalla está vacía',
   });
   assert.equal(s.state().members.core.handle, 'term_fake1');
   assert.equal(s.state().members.core.session, null);
+});
+
+const orcaRead = { tool: 'orca', args: ['terminal', 'read', '--terminal', 'term_fake1', '--screen', '--json'] };
+
+// SK18: when the session never publishes, the screen says why; it is only read, never answered.
+test('sala abrir reads the Orca screen when the session never publishes and names an update dialog', (t) => {
+  const s = setup(t, { launcher: 'orca' });
+  const screen = [
+    '', 'Gentle Shell', '  token ghp_abcdefghijklmnopqrstuvwxyz0123 \u001b[31m',
+    'Gentle Shell update available', '4.9.0 → 5.0.0', '', '> Update now', '  Not now', '   ',
+  ].join('\n');
+
+  const res = runSala(s.dir, ['abrir', 'core'], { ...s.env, FAKE_SNAPSHOT: '', SALA_OPEN_TIMEOUT_MS: '600', FAKE_ORCA_SCREEN: screen });
+
+  assert.equal(res.code, 1);
+  assert.equal(res.stdout, '');
+  assert.deepEqual(JSON.parse(res.stderr), {
+    error: 'core: se abrió la terminal term_fake1, pero Gentle Shell no publicó su sesión en 0.6 s; '
+      + 'Gentle Shell espera una respuesta en su pantalla (un aviso de actualización): '
+      + '«token [token de GitHub] / Gentle Shell update available / 4.9.0 → 5.0.0 / > Update now / Not now»; '
+      + 'contestala vos en la terminal (sala mostrar core)',
+  });
+  // Only create and one read: nothing is ever written to the screen.
+  assert.deepEqual(s.calls(), [orcaCreate(s.work), orcaRead]);
+  assert.equal(s.state().members.core.session, null);
+});
+
+test('sala abrir shows any other screen as is, and says so when the screen cannot be read', (t) => {
+  const s = setup(t, { launcher: 'orca' });
+  const env = { ...s.env, FAKE_SNAPSHOT: '', SALA_OPEN_TIMEOUT_MS: '600' };
+  const long = 'x'.repeat(200);
+
+  const shown = runSala(s.dir, ['abrir', 'core'], { ...env, FAKE_ORCA_SCREEN: `PS C:\\core> gentle-shell\n${long}` });
+  assert.equal(shown.code, 1);
+  assert.deepEqual(JSON.parse(shown.stderr), {
+    error: `core: se abrió la terminal term_fake1, pero Gentle Shell no publicó su sesión en 0.6 s; su pantalla muestra: «PS C:\\core> gentle-shell / ${'x'.repeat(160)}…»`,
+  });
+
+  fs.rmSync(s.stateFile);
+  const failed = runSala(s.dir, ['abrir', 'core'], { ...env, FAKE_ORCA_READ_FAIL: '1' });
+  assert.equal(failed.code, 1);
+  assert.deepEqual(JSON.parse(failed.stderr), {
+    error: 'core: se abrió la terminal term_fake1, pero Gentle Shell no publicó su sesión en 0.6 s; no se pudo leer su pantalla: terminal not found',
+  });
+});
+
+test('sala abrir never rebuilds a secret split by a control or an invisible character on the screen', (t) => {
+  const s = setup(t, { launcher: 'orca' });
+  const env = { ...s.env, FAKE_SNAPSHOT: '', SALA_OPEN_TIMEOUT_MS: '600' };
+  const token = `ghp_${'A'.repeat(36)}`;
+  for (const sep of ['\u200b', '\u001b', '\u007f', '\u00ad', '\u2028', '\u001b[31m']) {
+    fs.rmSync(s.stateFile, { force: true });
+    const res = runSala(s.dir, ['abrir', 'core'], { ...env, FAKE_ORCA_SCREEN: `x ${token.slice(0, 14)}${sep}${token.slice(14)}` });
+    assert.equal(res.code, 1);
+    const { error } = JSON.parse(res.stderr);
+    assert.ok(error.endsWith('su pantalla muestra: «x [token de GitHub]»'), error);
+  }
+
+  // An Orca error on reading is cleaned the same way.
+  const fake = path.join(s.dir, 'orca-read.js');
+  fs.writeFileSync(fake, `${'const a = process.argv.slice(2);'}
+    if (a[1] === 'read') { process.stderr.write('boom \\u001b[31m ${token.slice(0, 14)}\\u200b${token.slice(14)}'); process.exit(1); }
+    require(${JSON.stringify(FAKE_ORCA)});`);
+  fs.rmSync(s.stateFile, { force: true });
+  const failed = runSala(s.dir, ['abrir', 'core'], { ...env, SALA_ORCA: fake });
+  assert.equal(JSON.parse(failed.stderr).error.split('; ')[1], 'no se pudo leer su pantalla: boom  [token de GitHub]');
+});
+
+test('sala abrir in Windows Terminal says the screen cannot be read and reads nothing', (t) => {
+  const s = setup(t, { launcher: 'wt' });
+
+  const res = runSala(s.dir, ['abrir', 'core'], { ...s.env, FAKE_SNAPSHOT: '', SALA_OPEN_TIMEOUT_MS: '600' });
+
+  assert.equal(res.code, 1);
+  assert.deepEqual(JSON.parse(res.stderr), {
+    error: 'core: se abrió la pestaña «sala-core», pero Gentle Shell no publicó su sesión en 0.6 s; '
+      + 'Windows Terminal no deja leer su pantalla: mirala en esa pestaña',
+  });
+  assert.deepEqual(s.calls().map((c) => c.tool), ['wt']);
 });
 
 test('sala abrir never prints a credential from an Orca error answered on stdout', (t) => {
