@@ -37,7 +37,7 @@ async function readFile(dir, ref, file) {
   return res.code === 0 ? res.stdout : null;
 }
 
-async function reviewMember(member) {
+async function reviewMember(member, sala) {
   const where = `${member.remote}/${member.base}`;
   const base = await baseRemote(member);
   if (!base.ok) return { id: member.id, ok: false, requirements: [base.check, ...unchecked(`no se pudo leer ${where}`)], warnings: [] };
@@ -46,7 +46,7 @@ async function reviewMember(member) {
     readFile(member.path, ref, 'docs/ROADMAP.md'),
     readFile(member.path, ref, 'AGENTS.md'),
   ]);
-  const requirements = [base.check, ...memberRequirements({ roadmap, agents }, where)];
+  const requirements = [base.check, ...memberRequirements({ roadmap, agents }, where, sala)];
   return { id: member.id, ok: requirements.every((r) => r.ok === true), requirements, warnings: [...strayWarnings(roadmap), ...oldBlocks(agents)] };
 }
 
@@ -58,7 +58,7 @@ async function revisar(config, salaDir, only) {
   }
   const salaText = fs.readFileSync(path.join(salaDir, 'sala.json'), 'utf8');
   const sala = [noSecrets([['sala.json', salaText]])];
-  const [gentleShell, reviewed] = await Promise.all([contractCheck(), Promise.all(members.map(reviewMember))]);
+  const [gentleShell, reviewed] = await Promise.all([contractCheck(), Promise.all(members.map((m) => reviewMember(m, config.name)))]);
   return {
     schema: OUTPUT_SCHEMA,
     sala: config.name,

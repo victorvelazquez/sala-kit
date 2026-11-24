@@ -10,7 +10,7 @@ const START = '<!-- sala-kit:miembro:inicio -->';
 const END = '<!-- sala-kit:miembro:fin -->';
 const TEMPLATES = path.join(__dirname, '..', 'templates');
 const body = (file) => fs.readFileSync(path.join(TEMPLATES, 'bloques', file), 'utf8');
-const memberBody = () => fs.readFileSync(path.join(TEMPLATES, 'miembro', 'bloque.md'), 'utf8').replace(/^<!--[\s\S]*?-->\r?\n/, '');
+const memberBody = () => fs.readFileSync(path.join(TEMPLATES, 'miembro', 'bloque.md'), 'utf8').replace(/^<!--[\s\S]*?-->\r?\n/, '').replaceAll('{{SALA}}', 'prueba');
 const read = (dir) => fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf8');
 const crlf = (text) => text.replace(/\r?\n/g, '\r\n');
 
@@ -43,7 +43,7 @@ test('sala unirse brings the old blocks up to date between their marks and never
     const conv = eol === 'crlf' ? crlf : (x) => x;
     fs.writeFileSync(path.join(dir, 'AGENTS.md'), conv(joined(OLD)));
 
-    const res = runSala(dir, ['unirse']);
+    const res = runSala(dir, ['unirse', '--de', 'prueba']);
 
     assert.equal(res.code, 0, res.stderr);
     assert.equal(res.stderr, '');
@@ -56,7 +56,7 @@ test('sala unirse brings the old blocks up to date between their marks and never
     assert.deepEqual(fs.readdirSync(dir), ['AGENTS.md']);
 
     // Run again: everything is up to date and nothing changes.
-    const again = runSala(dir, ['unirse']);
+    const again = runSala(dir, ['unirse', '--de', 'prueba']);
     assert.equal(again.code, 0, again.stderr);
     assert.deepEqual(JSON.parse(again.stdout), {
       dir, created: [], updated: [], skipped: [{ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro y los bloques al día' }], warnings: [],
@@ -70,7 +70,7 @@ test('sala unirse brings an old member block up to date between its marks', (t) 
   const text = `# Reglas\n\nPropia.\n\n${START}\nla versión vieja del bloque\n${END}\n\nDespués.\n`;
   fs.writeFileSync(path.join(dir, 'AGENTS.md'), text);
 
-  const res = runSala(dir, ['unirse']);
+  const res = runSala(dir, ['unirse', '--de', 'prueba']);
 
   assert.equal(res.code, 0, res.stderr);
   assert.deepEqual(JSON.parse(res.stdout).updated, ['miembro']);
@@ -88,7 +88,7 @@ test('sala unirse writes nothing when a block has broken marks', (t) => {
   for (const c of cases) {
     const dir = tempDir(t);
     fs.writeFileSync(path.join(dir, 'AGENTS.md'), c.text);
-    const res = runSala(dir, ['unirse']);
+    const res = runSala(dir, ['unirse', '--de', 'prueba']);
     assert.equal(res.code, 1, c.error);
     assert.equal(res.stdout, '');
     assert.deepEqual(JSON.parse(res.stderr), { error: c.error });
@@ -104,7 +104,7 @@ test('sala unirse keeps mixed line ends outside the marks byte by byte, and neve
   const middle = '\nD\n';
   fs.writeFileSync(path.join(dir, 'AGENTS.md'), `${before}<!-- panel:tareas v1.3 -->\r\nviejo\r\n<!-- /panel:tareas -->${middle}${newer}\nE`);
 
-  const res = runSala(dir, ['unirse']);
+  const res = runSala(dir, ['unirse', '--de', 'prueba']);
 
   assert.equal(res.code, 0, res.stderr);
   assert.deepEqual(JSON.parse(res.stdout), {
@@ -122,10 +122,10 @@ test('sala unirse keeps the line end after the member end mark as it was', (t) =
   for (const [after, tail] of [['\n', 'Después.\r\n'], ['\r\n', 'Después.\n'], ['', '']]) {
     const dir = tempDir(t);
     fs.writeFileSync(path.join(dir, 'AGENTS.md'), `# R\r\n${START}\r\nviejo\r\n${END}${after}${tail}`);
-    const res = runSala(dir, ['unirse']);
+    const res = runSala(dir, ['unirse', '--de', 'prueba']);
     assert.equal(res.code, 0, res.stderr);
     assert.equal(read(dir), `# R\r\n${crlf(member()).replace(/\r\n$/, '')}${after}${tail}`, JSON.stringify(after));
-    assert.deepEqual(JSON.parse(runSala(dir, ['unirse']).stdout).updated, []);
+    assert.deepEqual(JSON.parse(runSala(dir, ['unirse', '--de', 'prueba']).stdout).updated, []);
   }
 });
 

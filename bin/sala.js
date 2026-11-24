@@ -74,7 +74,8 @@ Uso:
   sala condiciones <miembro> [--texto] [--sala <carpeta>]
                                              le manda al miembro, con las guardas de sala enviar, la
                                              orden de cumplir los requisitos que le faltan
-  sala unirse [--texto] [--sala <carpeta>]   en un miembro: pone al día su AGENTS.md solo entre las
+  sala unirse [--de <sala>] [--texto] [--sala <carpeta>]
+                                             en un miembro: pone al día su AGENTS.md solo entre las
                                              marcas: el bloque del miembro (al final, si falta) y los
                                              bloques viejos panel:tareas, panel:entrega y
                                              orquestacion:ciclo; fuera de las marcas no cambia nada
@@ -173,6 +174,7 @@ Opciones:
   --hora <HH:MM>     con agendar: la hora del plan del día (por defecto, 08:00)
   --id, --prefijo, --base, --remoto
                      con adoptar: el dato del miembro, en vez de deducirlo
+  --de <sala>        con unirse: el name de la sala, que el bloque del miembro nombra (D56)
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
   --help, -h         esta ayuda, en cualquier lugar de los argumentos: no corre el comando
   --version          la versión del kit, en cualquier lugar: no corre el comando
@@ -184,7 +186,7 @@ const COMMANDS = {
   instalar: { run: (opts) => instalar({ forzar: opts.forzar }), texto: instalarTexto, noConfig: true, failed: (result) => !result.ok },
   // It reads sala.json by itself: an old one may not pass loadConfig until it is migrated.
   actualizar: { run: (opts) => actualizar(opts.sala), texto: actualizarTexto, noConfig: true },
-  unirse: { run: (opts) => unirse(opts.sala), texto: unirseTexto, noConfig: true },
+  unirse: { run: (opts) => unirse(opts.sala, opts.de), texto: unirseTexto, noConfig: true },
   dependencias: { run: (opts) => dependencias(opts.sala, { instalar: opts.instalar }), texto: dependenciasTexto, noConfig: true },
   adoptar: { run: (config, opts) => adoptar(config, opts.sala, opts.member, opts.adopt), texto: adoptarTexto, member: 'required', memberLabel: 'una carpeta' },
   soltar: { run: (config, opts) => soltar(config, opts.sala, opts.member), texto: soltarTexto, member: 'required' },
@@ -246,6 +248,11 @@ function parseArgs(argv) {
       if (!argv[i + 1]) throw new ConfigError(`${arg} necesita un valor`);
       if (Object.hasOwn(opts.adopt, ADOPT_FLAGS[arg])) throw new ConfigError(`${arg} va una sola vez`);
       opts.adopt[ADOPT_FLAGS[arg]] = argv[(i += 1)];
+    }
+    else if (arg === '--de' && opts.command === 'unirse') {
+      if (!argv[i + 1]) throw new ConfigError('--de necesita un valor');
+      if (opts.de !== undefined) throw new ConfigError('--de va una sola vez');
+      opts.de = argv[(i += 1)];
     }
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
     else if (arg === '--forzar' && opts.command === 'instalar') opts.forzar = true;

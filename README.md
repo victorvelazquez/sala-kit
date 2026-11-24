@@ -361,7 +361,7 @@ Revisa el catálogo de requisitos en cada miembro, o solo en `miembro` (su `id`)
 | `roadmap-header` | Las tres líneas de cabecera: `**Dónde está:**`, `**Qué sigue:**` y `**Qué lo bloquea:**` |
 | `roadmap-states` | Cada `Estado` es `Pendiente`, `En curso`, `Completada` o `Bloqueada` |
 | `agents-size` | `AGENTS.md` existe y pesa 16 KB o menos |
-| `member-block` | `AGENTS.md` tiene el bloque del miembro, entre `<!-- sala-kit:miembro:inicio -->` y `<!-- sala-kit:miembro:fin -->` |
+| `member-block` | `AGENTS.md` tiene el bloque del miembro, entre `<!-- sala-kit:miembro:inicio -->` y `<!-- sala-kit:miembro:fin -->`, y el bloque nombra a esta sala con `<!-- sala-kit:sala=<name> -->` (D56). Un bloque viejo sin nombre falla con la orden de correr `sala unirse --de <name>`; uno que nombra otra sala falla y la decisión es de la persona |
 | `old-blocks` | `AGENTS.md` no tiene `panel:tareas`, `panel:entrega` ni `orquestacion:ciclo` en una versión más vieja que la del kit, ni con sus marcas rotas (D52); `sala unirse` los pone al día |
 | `no-secrets` | `AGENTS.md` sin secretos; también se revisa el `sala.json` de la sala, en `salaJson` |
 
@@ -379,7 +379,7 @@ Cada miembro trae también `warnings`: avisos que no hacen fallar, como un bloqu
 sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>] [--texto] [--sala <carpeta>]
 sala soltar <miembro> [--texto] [--sala <carpeta>]
 sala condiciones <miembro> [--texto] [--sala <carpeta>]
-sala unirse [--texto] [--sala <carpeta>]
+sala unirse [--de <sala>] [--texto] [--sala <carpeta>]
 ```
 
 - `sala adoptar` suma el repositorio a `members` de `sala.json`. Deduce cada dato que no le pasás:
@@ -388,12 +388,13 @@ sala unirse [--texto] [--sala <carpeta>]
   - el `remote`, `origin`;
   - la `base`, de la rama por defecto del remoto (`origin/HEAD`, la que deja `git clone`).
 
-  Se niega con una carpeta que no existe, que no es la raíz de un repositorio, que es una sala o que ya es miembro. También se niega si no puede deducir un dato o si el resultado no valida. En todos esos casos, `sala.json` queda como estaba. **Nunca escribe en el miembro:** solo avisa si le falta el bloque del miembro o si tiene `panel:entrega`.
+  Se niega con una carpeta que no existe, que no es la raíz de un repositorio, que es una sala o que ya es miembro. También se niega, con «upen-brand ya es miembro de la sala upen», si el bloque del miembro de su `AGENTS.md` nombra otra sala: un repositorio es miembro de una sola sala (D56). También se niega si no puede deducir un dato o si el resultado no valida. En todos esos casos, `sala.json` queda como estaba. **Nunca escribe en el miembro:** solo avisa si le falta el bloque del miembro, si su bloque no nombra ninguna sala o si tiene `panel:entrega`.
 - `sala soltar` saca al miembro de `sala.json`, junto con sus tareas de `pinned`, sin tocar su repositorio.
-- `sala condiciones` revisa al miembro y le manda por `sala enviar`, con sus guardas y su registro, la orden de cumplir lo que falta: un requisito por línea con su orden. Si la base o el remoto fallan, no manda nada, porque eso se corrige en `sala.json`. Si cumple todo, tampoco.
+- `sala condiciones` revisa al miembro y le manda por `sala enviar`, con sus guardas y su registro, la orden de cumplir lo que falta: un requisito por línea con su orden. Si la base o el remoto fallan, no manda nada, porque eso se corrige en `sala.json`. Si cumple todo, tampoco. Si el bloque del miembro nombra otra sala, se niega: esa sala es la única que le manda órdenes (D56).
 - `sala unirse` corre **en el miembro**, en una tarea propia: pone al día su `AGENTS.md`, siempre **solo entre las marcas** (D41, D52):
   - si `AGENTS.md` no existe, lo crea con el bloque del miembro (`templates/miembro/bloque.md`);
   - si no tiene el bloque del miembro, lo agrega al final; si lo tiene viejo, lo reemplaza entre sus marcas;
+  - `--de <sala>` es el `name` de la sala que lo adopta: el bloque la nombra con `<!-- sala-kit:sala=<sala> -->` y una frase (D56). Sin `--de`, el bloque mantiene la sala que ya nombra; si no nombra ninguna, queda sin nombre y avisa. Se niega si el bloque ya nombra otra sala: para cambiar de sala, la persona saca el bloque a mano. El nombre lleva letras, números, punto, guion o guion bajo, hasta 64, sin empezar con guion; `sala condiciones` lo manda con el de su `sala.json`;
   - los bloques viejos que escribimos antes de la sala, `panel:tareas`, `panel:entrega` y `orquestacion:ciclo`, pasan a su versión compatible (`templates/bloques/`: `v1.4`, `v1.1` y `v1.1`), que ya no dicen que `/flow-*` es lo único ni dejan sin efecto a la sala;
   - fuera de las marcas no cambia ni un byte, y el archivo conserva sus finales de línea (LF o CRLF). Los demás bloques (`orquestacion:registro`, `panel:estado`) no se tocan;
   - si unas marcas están repetidas, sin cerrar o al revés, no escribe nada y lo dice;

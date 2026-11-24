@@ -13,7 +13,7 @@ const TABLE = [
   '| E1 | Primera | Se ve | — | Completada |  | — |',
 ].join('\n');
 const tested = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'contrato', 'gentle-shell.json'), 'utf8'));
-const BLOCK = '<!-- sala-kit:miembro:inicio -->\nbloque\n<!-- sala-kit:miembro:fin -->\n';
+const BLOCK = '<!-- sala-kit:miembro:inicio -->\n<!-- sala-kit:sala=prueba -->\nbloque\n<!-- sala-kit:miembro:fin -->\n';
 const GOOD = { 'docs/ROADMAP.md': `# Hoja de ruta\n\n${HEADER}\n${TABLE}\n`, 'AGENTS.md': `# Reglas\n\n${BLOCK}` };
 
 function pushFiles(work, files) {
