@@ -179,6 +179,33 @@ test('a base missing on the remote fails, and what needs it is left unchecked', 
   ));
 });
 
+test('a remote that cannot be read is not a failing requirement: it says so instead of 0/8 (SK31)', (t) => {
+  const dir = tempDir(t);
+  const core = memberRepo(dir, 'core');
+  pushFiles(core.work, GOOD);
+  // The remote stops answering after the clone, as GitHub cutting the connection.
+  git(core.work, 'remote', 'set-url', 'origin', path.join(dir, 'gone.git'));
+  writeSala(dir, salaConfig([member('core', core.work)]));
+
+  const m = JSON.parse(runSala(dir, ['revisar']).stdout).members[0];
+
+  assert.equal(m.ok, null);
+  assert.equal(m.requirements[0].ok, null);
+  assert.match(m.requirements[0].detail, /^no se pudo leer la base remota origin\/main: /);
+  assert.equal(m.requirements[0].fix, null);
+  assert.deepEqual(m.requirements.slice(1).map((r) => [r.ok, r.detail]), Array(7).fill(
+    [null, 'sin comprobar: no se pudo leer origin/main'],
+  ));
+  const text = runSala(dir, ['revisar', '--texto']).stdout;
+  assert.ok(text.includes('core: no se pudo leer la base remota origin/main; volvé a correr sala revisar\n'), text);
+  assert.ok(!text.includes('core: cumple'), text);
+
+  // sala condiciones does not ask to fix sala.json for a network error.
+  const refused = runSala(dir, ['condiciones', 'core']);
+  assert.equal(refused.code, 1);
+  assert.match(JSON.parse(refused.stderr).error, /^core: no se pudo leer la base remota origin\/main; volvé a intentarlo: /);
+});
+
 test('sala revisar <miembro> checks only that member; an unknown one is an error', (t) => {
   const dir = tempDir(t);
   const core = memberRepo(dir, 'core');
