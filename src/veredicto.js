@@ -15,21 +15,18 @@ const { depsCheck } = require('./dependencias');
 const OUTPUT_SCHEMA = 1;
 const ROADMAP = 'docs/ROADMAP.md';
 const TITLE_ID = /\(([^()]+)\)\s*$/;
-// Git Bash rewrites `/flow-base` into C:/Program Files/Git/flow-base before node sees it.
+// Git Bash rewrites `/miembro-base` into C:/Program Files/Git/miembro-base before node sees it.
 const BASH_PATH = /^[A-Za-z]:[\\/](?:.*[\\/])?Git[\\/]([^\\/\s]+)/i;
 
 // Control and bidi characters never reach an error message as they are.
 const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 
 // The rule a command must leave true. The rule names work as commands too.
-// The /flow-* entries are a bridge until the members drop them in SK5c (D26).
+// The /flow-* bridge is gone (SK5g): the sala only sends /miembro-* (D26).
 // No prototype: `constructor` or `toString` are not commands.
 const RULES = Object.freeze(Object.assign(Object.create(null), {
   'miembro-entregar': 'entrega',
   'miembro-base': 'base',
-  'flow-ship': 'entrega',
-  'flow-pr': 'entrega',
-  'flow-base': 'base',
   entrega: 'entrega',
   base: 'base',
 }));
@@ -38,7 +35,7 @@ function check(id, ok, detail) {
   return { id, ok, detail };
 }
 
-// `/flow-ship`, `flow-ship`, `/flow-ship SK2d` and the Git Bash path name the same command.
+// `/miembro-entregar`, `miembro-entregar`, `/miembro-entregar SK2d` and the Git Bash path name the same command.
 // The verdict only reads, so reading the command back from that path is harmless.
 function commandName(text) {
   const clean = String(text).trim();

@@ -132,9 +132,9 @@ Uso:
                                              .sala/ordenes.log
   sala veredicto <miembro> <comando> [--texto] [--sala <carpeta>]
                                              comprueba lo que el comando debía dejar hecho: después de
-                                             miembro-entregar (o flow-ship, flow-pr), la rama, el commit
-                                             subido, el PR, su CI y la fila Completada; después de
-                                             miembro-base (o flow-base), la base limpia y al día
+                                             miembro-entregar, la rama, el commit subido, el PR, su CI
+                                             y la fila Completada; después de miembro-base, la base
+                                             limpia y al día
   sala fusionar <miembro> <n> [--texto] [--sala <carpeta>]
                                              fusiona el PR #n del miembro, solo si está abierto, en
                                              verde y fusionable, con el método que el repo permite;
