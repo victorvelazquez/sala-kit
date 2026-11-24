@@ -6,7 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { run, redact, gitError } = require('./run');
-const { TASK_ORDER, namedRows } = require('./enviar');
+const { readTaskOrder, namedRows } = require('./enviar');
 const { parseRoadmap } = require('./roadmap');
 const { openPrs } = require('./estado');
 const { findMember, SalaError } = require('./abrir');
@@ -129,7 +129,7 @@ function orderedTask(salaDir, member) {
     }
     // An answer to a question carries its question; only orders count.
     if (!entry || entry.member !== member.id || entry.result !== 'sent' || entry.question || typeof entry.text !== 'string') continue;
-    const match = TASK_ORDER.exec(entry.text.replace(/\p{Cf}/gu, '').trim());
+    const match = readTaskOrder(entry.text);
     if (!match) continue;
     if (!match[1]) return null;
     return { shown: redact(match[1]).replace(UNSAFE, '?').slice(0, 64), rows: namedRows(match[1], member.prefix) };

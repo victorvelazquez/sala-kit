@@ -81,7 +81,7 @@ test('a free member delivers its work, its PR is merged when its CI is green, an
 
   // A branch whose PR was already merged (from GitHub, say) goes back to the base, it is not delivered again.
   assert.deepEqual(await s.next({ FAKE_GH_MERGED: JSON.stringify([{ number: 3 }]) }),
-    { id: 'core', step: 'base', detail: 'el PR #3 de la rama feat ya se fusionó', command: 'sala enviar core /miembro-base' });
+    { id: 'core', step: 'base', detail: 'el PR #3 de la rama feat ya se fusionó', command: 'sala enviar core "/miembro-base main"' });
 });
 
 test('on its clean base a member asks for its next task, goes back when behind, and is free when there is none', async (t) => {
@@ -96,7 +96,7 @@ test('on its clean base a member asks for its next task, goes back when behind, 
   git(other, 'config', 'user.email', 'test@example.com');
   git(other, 'config', 'user.name', 'Test');
   pushRoadmap(other, roadmap([['E1', '—', 'Completada'], ['E2', 'E1', 'Completada']]));
-  assert.deepEqual(await s.next(), { id: 'core', step: 'base', detail: 'main está 1 commit detrás de origin/main', command: 'sala enviar core /miembro-base' });
+  assert.deepEqual(await s.next(), { id: 'core', step: 'base', detail: 'main está 1 commit detrás de origin/main', command: 'sala enviar core "/miembro-base main"' });
 
   git(s.core.work, 'pull', '--quiet', 'origin', 'main');
   assert.deepEqual(await s.next(), { id: 'core', step: 'libre', detail: 'no tiene una tarea lista en su roadmap', command: null });

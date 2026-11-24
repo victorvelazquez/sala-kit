@@ -250,10 +250,10 @@ Fusiona el PR #n del miembro y sigue con su tarea siguiente, en una sola cadena 
 | `pr` | El PR está abierto, no es un borrador, va a la base del miembro, todos sus checks terminaron en verde (`SUCCESS`, `NEUTRAL` o `SKIPPED`; un resultado que el kit no conoce no cuenta como verde) o no tiene CI, GitHub dice que se puede fusionar y su tarea es la que la sala le pidió a ese miembro (el check `order` del veredicto de la entrega; sin una orden anotada, no frena) |
 | `session` | El miembro tiene una sola sesión viva que puede recibir órdenes, con las guardas de `sala enviar`. Sin ella no se fusiona: después no podría volver a la base |
 | `merge` | Fusiona con el primer método que el repo permite (squash, rebase o merge), y solo si la cabeza del PR sigue siendo el commit que se comprobó (`--match-head-commit`). Después comprueba que el PR figure `MERGED`: con una cola de fusión, `gh` puede terminar bien con el PR todavía abierto, y la cadena no sigue |
-| `base` | Le manda `/miembro-base` a la sesión del miembro y espera a que termine |
+| `base` | Le manda `/miembro-base <base>` a la sesión del miembro, con la base de `sala.json`, y espera a que termine |
 | `gate` | La puerta: `sala veredicto <miembro> base` tiene que dar OK |
 | `restart` | Si hay una tarea para pedir y la sala abrió la terminal del miembro en Orca, la reinicia con `sala reiniciar`, así la tarea arranca con contexto limpio (D29). Si la terminal es de la persona (no la abrió la sala, o es una pestaña de Windows Terminal), no la toca y sigue la misma sesión. Si el reinicio se niega, la cadena se detiene antes de pedir nada |
-| `next` | Le pide la tarea siguiente del plan de la sala, `/miembro-tarea <ID>`, salvo que su fila diga `Auto: no` en `Notas`. Un ID que no tiene forma de ID no se manda: una fila es un dato, no una orden |
+| `next` | Le pide la tarea siguiente del plan de la sala, `/miembro-tarea <ID> --base <base>`, salvo que su fila diga `Auto: no` en `Notas`. Un ID que no tiene forma de ID no se manda: una fila es un dato, no una orden |
 
 Se detiene en el primer paso que falla y dice cuál (`stoppedAt`) y por qué; en ese caso sale con código 1. Antes de cada paso mira `.sala/PAUSA` y el tope de tiempo de la cadena (45 minutos). Cada paso deja una línea en `.sala/fusiones.log`, con los secretos enmascarados; si no se puede anotar, la cadena no sigue (y si el paso era la fusión, el error lo dice). gh corre sin shell y con los argumentos en una lista (D40).
 
@@ -293,7 +293,7 @@ El paso siguiente de cada miembro, con el comando exacto, para contestar «¿qu�
 | `entregar` | está libre con cambios sin commit, o en su rama sin PR abierto | `/sala-entregar <miembro>` |
 | `fusionar` | el PR de su rama tiene el CI en verde (o no tiene CI) y es de la tarea que la sala le pidió; si es de otra, el paso es `revisar` | `/sala-fusionar <miembro> <n>`, con el OK de la persona |
 | `ci` | el PR de su rama tiene el CI corriendo o en rojo, o es un borrador | — |
-| `base` | su rama ya se fusionó, o la base está atrás del remoto | `sala enviar <miembro> /miembro-base` |
+| `base` | su rama ya se fusionó, o la base está atrás del remoto | `sala enviar <miembro> "/miembro-base <base>"` |
 | `tarea` | está en su base, limpia y al día, con una tarea lista en el plan | `/sala-seguir <miembro>` |
 | `libre` | no tiene una tarea lista | — |
 | `revisar` | algo que la sala no resuelve sola: la carpeta, un HEAD suelto, un stash, commits sin subir o un remoto que no responde | — |
@@ -442,7 +442,7 @@ Los comandos del miembro se cargan con el kit y se niegan fuera de un miembro (`
   - en `directo` implementa sin preguntar; si encuentra algo inesperado, frena con `### Pido la puerta: <motivo>` y el plan;
   - con modo, el reporte final va con `### Hecho`, `### Comprobado`, `### Sin comprobar` y `### Siguiente`. Sin modo, sigue como siempre.
 - **`/miembro-entregar [ID]`** hace el commit y el PR de la tarea terminada con `sala motor`, sin `/flow-*` ni `git commit`, y comprueba el PR con `gh`. Nunca fusiona.
-- **`/miembro-base`** vuelve a la rama base y la trae del remoto solo con avance rápido. Nunca borra ramas, ni guarda en el stash, ni fuerza nada.
+- **`/miembro-base [base]`** vuelve a la rama base y la trae del remoto solo con avance rápido. La sala le pasa la base de `sala.json`, y `/miembro-tarea` la recibe con `--base <base>`; sin argumento, los dos toman la rama que nombra `origin/HEAD`. Nunca borra ramas, ni guarda en el stash, ni fuerza nada.
 - **`/miembro-informe`** cuenta el avance del proyecto entero: lo hecho, lo en curso, lo pendiente en orden y el paso siguiente. Solo lee.
 
 Con el agente `miembro-entrega` instalado (`sala instalar`), `/miembro-entregar` le delega la entrega entera y el motor corre en ese agente, con el modelo que la persona le elija en sus perfiles de modelos; sin el agente, corre en la conversación del miembro.
