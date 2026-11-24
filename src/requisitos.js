@@ -3,7 +3,7 @@
 // The catalog of requirements for a member (D24, D42). Each check is pure: it
 // gets the files read from the remote base and returns { id, ok, detail, fix }.
 
-const { parseRoadmap } = require('./roadmap');
+const { parseRoadmap, strayRows } = require('./roadmap');
 const { blockVersions } = require('./bloques');
 
 const STATES = ['Pendiente', 'En curso', 'Completada', 'Bloqueada'];
@@ -117,6 +117,12 @@ function noOldBlocks(text) {
     'En una tarea propia, corré `sala unirse` en la raíz del repositorio: pone panel:tareas, panel:entrega y orquestacion:ciclo en su versión compatible con la sala, solo entre sus marcas (si las marcas están rotas, arreglalas a mano antes). Si una regla de AGENTS.md fuera de las marcas choca con la sala, mostrale a la persona el cambio exacto, línea por línea, y aplicalo solo con su OK. Entregalo con su PR.');
 }
 
+// A task row outside the table only warns (SK25): the reader skips it, so it says where it is.
+function strayWarnings(text) {
+  if (text === null) return [];
+  return strayRows(text, STATES).map((r) => `docs/ROADMAP.md tiene la fila ${version(r.id)} fuera de la tabla de tareas (línea ${r.line}); movela adentro de la tabla de tareas, junto a las otras filas: la sala no lee las filas de afuera`);
+}
+
 // A block newer than the kit's meets the requirement and only warns.
 function oldBlocks(text) {
   return blockVersions(text).newer.map((b) => `AGENTS.md tiene ${b.name} ${version(b.version)}, más nuevo que el ${b.kit} del kit`);
@@ -136,6 +142,7 @@ function memberRequirements(files, where) {
 module.exports = {
   memberRequirements,
   oldBlocks,
+  strayWarnings,
   staleDetail,
   noSecrets,
   mask,

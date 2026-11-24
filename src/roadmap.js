@@ -15,9 +15,11 @@ function parseDeps(cell) {
   return cell.split(',').map((d) => d.trim()).filter((d) => !NO_DEPS.has(d));
 }
 
+const isHeader = (l) => l.trim().startsWith('|') && REQUIRED.every((name) => cells(l).includes(name));
+
 function parseRoadmap(text) {
   const lines = String(text).split(/\r?\n/);
-  const start = lines.findIndex((l) => l.trim().startsWith('|') && REQUIRED.every((name) => cells(l).includes(name)));
+  const start = lines.findIndex(isHeader);
   if (start === -1) {
     return { error: `docs/ROADMAP.md no tiene la tabla con las columnas ${REQUIRED.slice(0, -1).join(', ')} y Estado` };
   }
@@ -40,4 +42,23 @@ function parseRoadmap(text) {
   return { rows };
 }
 
-module.exports = { parseRoadmap };
+// Task rows the reader never sees: after the table ends, a line with the table's columns
+// whose Estado cell is one of `states` (SK25). Another table or a header is not a row.
+function strayRows(text, states) {
+  const lines = String(text).split(/\r?\n/);
+  const start = lines.findIndex(isHeader);
+  if (start === -1) return [];
+  const header = cells(lines[start]);
+  let end = start + 2;
+  while (end < lines.length && lines[end].trim().startsWith('|')) end++;
+  const stray = [];
+  for (let i = end; i < lines.length; i++) {
+    if (!lines[i].trim().startsWith('|') || isHeader(lines[i])) continue;
+    const c = cells(lines[i]);
+    const id = c[header.indexOf('ID')];
+    if (c.length === header.length && id && states.includes(c[header.indexOf('Estado')])) stray.push({ id, line: i + 1 });
+  }
+  return stray;
+}
+
+module.exports = { parseRoadmap, strayRows };
