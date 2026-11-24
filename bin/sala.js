@@ -64,7 +64,7 @@ Uso:
                                              faltan, la orden para cumplirlos; y sus avisos, con
                                              los agentes del kit que faltan o quedaron viejos
   sala adoptar <carpeta> [--id <id>] [--prefijo <PREFIJO>] [--base <rama>] [--remoto <nombre>]
-               [--texto] [--sala <carpeta>]
+               [--probar] [--texto] [--sala <carpeta>]
                                              suma el repositorio a sala.json; deduce el id y el prefijo
                                              del nombre de la carpeta, el remoto (origin) y la base
                                              (la rama por defecto del remoto); nunca escribe en él
@@ -174,6 +174,8 @@ Opciones:
   --hora <HH:MM>     con agendar: la hora del plan del día (por defecto, 08:00)
   --id, --prefijo, --base, --remoto
                      con adoptar: el dato del miembro, en vez de deducirlo
+  --probar           con adoptar: muestra qué sumaría, los prefijos de los otros roadmaps y una
+                     propuesta, sin escribir sala.json
   --de <sala>        con unirse: el name de la sala, que el bloque del miembro nombra (D56)
   --sala <carpeta>   la carpeta de la sala (por defecto, la actual)
   --help, -h         esta ayuda, en cualquier lugar de los argumentos: no corre el comando
@@ -254,6 +256,7 @@ function parseArgs(argv) {
       if (opts.de !== undefined) throw new ConfigError('--de va una sola vez');
       opts.de = argv[(i += 1)];
     }
+    else if (arg === '--probar' && opts.command === 'adoptar') opts.adopt.probar = true;
     else if (arg === '--retomar' && opts.command === 'estado') opts.retomar = true;
     else if (arg === '--forzar' && opts.command === 'instalar') opts.forzar = true;
     else if (arg === '--instalar' && opts.command === 'dependencias') opts.instalar = true;

@@ -13,6 +13,7 @@ const { enviar } = require('./enviar');
 const { oldBlocks, staleDetail, blockSala, SALA_NAME, MEMBER_START, MEMBER_END } = require('./requisitos');
 const { template, readText, create } = require('./init');
 const { upgradeAgents } = require('./bloques');
+const { parseRoadmap } = require('./roadmap');
 
 // A detail comes from the member's files: it is masked already, and cut so the order stays short.
 const MAX_DETAIL = 300;
@@ -87,9 +88,46 @@ async function adoptar(config, salaDir, folder, flags = {}) {
   if (owner && owner !== config.name) throw new ConfigError(`${path.basename(real)} ya es miembro de la sala ${owner}`);
 
   const member = { id, prefix, path: real, base, remote };
+  const warnings = adoptWarnings(id, agents, owner);
+  if (flags.probar) {
+    const seen = await seenPrefixes(config);
+    return { sala: config.name, dryRun: true, member, seen, suggested: suggest(member, seen), warnings };
+  }
   const raw = readRaw(salaDir);
   writeRaw(salaDir, { ...raw, members: [...raw.members, member] });
+  return { sala: config.name, member, warnings };
+}
 
+// The prefixes the other members' roadmaps name in their dependencies (`WEB-W13`) that no
+// member has yet (SK30), read from each base as it is on this machine: no fetch.
+async function seenPrefixes(config) {
+  const taken = new Set(config.members.map((m) => m.prefix).filter(Boolean));
+  const seen = new Map();
+  await Promise.all(config.members.filter((m) => !m.lane).map(async (m) => {
+    const show = await run('git', ['show', `refs/remotes/${m.remote}/${m.base}:docs/ROADMAP.md`], { cwd: m.path });
+    if (show.code !== 0) return;
+    const parsed = parseRoadmap(show.stdout);
+    for (const r of parsed.rows || []) {
+      for (const dep of r.deps) {
+        const found = /^([A-Z][A-Z0-9]*)-\S+$/.exec(dep);
+        if (!found || taken.has(found[1])) continue;
+        if (!seen.has(found[1])) seen.set(found[1], new Set());
+        seen.get(found[1]).add(m.id);
+      }
+    }
+  }));
+  return [...seen.keys()].sort().map((prefix) => ({ prefix, in: [...seen.get(prefix)].sort() }));
+}
+
+// A seen prefix that is a part of the deduced id (`upen-web` and `WEB`); none if it already matches.
+function suggest(member, seen) {
+  if (seen.some((s) => s.prefix === member.prefix)) return null;
+  const parts = member.id.split('-');
+  const match = seen.find((s) => parts.includes(s.prefix.toLowerCase()));
+  return match ? { id: match.prefix.toLowerCase(), prefix: match.prefix } : null;
+}
+
+function adoptWarnings(id, agents, owner) {
   const warnings = [];
   if (owner === undefined) {
     warnings.push(`${id}: no tiene el bloque del miembro en AGENTS.md; \`sala condiciones ${id}\` le manda la orden de ponerse en condiciones`);
@@ -99,12 +137,17 @@ async function adoptar(config, salaDir, folder, flags = {}) {
   const stale = staleDetail(agents);
   if (stale) warnings.push(`${id}: ${stale}; \`sala condiciones ${id}\` le manda la orden de ponerse al día`);
   for (const w of oldBlocks(agents)) warnings.push(`${id}: ${w}`);
-  return { sala: config.name, member, warnings };
+  return warnings;
 }
 
 function adoptarTexto(r) {
   const m = r.member;
-  const lines = [`${m.id} adoptado en la sala ${r.sala}: prefijo ${m.prefix}, base ${m.remote}/${m.base}, ${m.path}`];
+  const what = r.dryRun ? `se adoptaría en la sala ${r.sala} (no se escribió nada)` : `adoptado en la sala ${r.sala}`;
+  const lines = [`${m.id} ${what}: prefijo ${m.prefix}, base ${m.remote}/${m.base}, ${m.path}`];
+  if (r.dryRun) {
+    if (r.seen.length) lines.push(`  prefijos en los otros roadmaps: ${r.seen.map((s) => `${s.prefix} (${s.in.join(', ')})`).join(', ')}`);
+    if (r.suggested) lines.push(`  propuesta: --id ${r.suggested.id} --prefijo ${r.suggested.prefix}`);
+  }
   for (const w of r.warnings) lines.push(`  aviso: ${w}`);
   return `${lines.join('\n')}\n`;
 }
@@ -207,12 +250,13 @@ async function condiciones(config, salaDir, id) {
     'Si alguno pide una decisión, preguntale a la persona antes de hacerlo.',
   ].join('\n');
   const sent = await enviar(config, salaDir, id, text);
-  return { member: id, failing: failing.map((r) => r.id), sent: true, session: sent.session };
+  // The member does the work in a task of its own and waits: the sala sends the delivery (SK30).
+  return { member: id, failing: failing.map((r) => r.id), sent: true, session: sent.session, next: `/sala-entregar ${id}` };
 }
 
 function condicionesTexto(r) {
   if (!r.sent) return `${r.member}: cumple todos los requisitos; no hay orden que mandar\n`;
-  return `${r.member}: orden de ponerse en condiciones entregada a la sesión ${r.session} (${r.failing.join(', ')})\n`;
+  return `${r.member}: orden de ponerse en condiciones entregada a la sesión ${r.session} (${r.failing.join(', ')})\n  cuando termine, el paso siguiente es ${r.next}\n`;
 }
 
 module.exports = { adoptar, adoptarTexto, soltar, soltarTexto, unirse, unirseTexto, condiciones, condicionesTexto };

@@ -255,7 +255,7 @@ test('sala condiciones sends the member the order to meet what fails, and only t
   const res = await runAsync(s.dir, ['condiciones', 'core'], s.env);
 
   assert.equal(res.code, 0, res.stderr);
-  assert.deepEqual(JSON.parse(res.stdout), { member: 'core', failing: ['member-block', 'old-blocks'], sent: true, session: 'id-c1' });
+  assert.deepEqual(JSON.parse(res.stdout), { member: 'core', failing: ['member-block', 'old-blocks'], sent: true, session: 'id-c1', next: '/sala-entregar core' });
   assert.equal(seen.length, 1);
   assert.equal(seen[0].kind, 'send_prompt');
   const text = seen[0].args.text;
