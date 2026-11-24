@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { readFeed, feedRoots } = require('./feed');
 const { pickLauncher, LAUNCHERS } = require('./launcher');
+const { redact } = require('./run');
+const { mask } = require('./requisitos');
 const { SESSION_STATE } = require('./estado');
 
 const STATE_SCHEMA = 1;
@@ -71,6 +73,29 @@ async function waitForSession(member, timeoutMs) {
     if (Date.now() >= deadline) return null;
     await sleep(Math.min(200, timeoutMs));
   }
+}
+
+const SCREEN_LINES = 5;
+const SCREEN_LINE_MAX = 160;
+// Screen text is cleaned before it is masked: a color sequence, a control or an invisible
+// character inside a secret would hide it from the mask, and removing it after would rebuild it.
+const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\p{Cf}]/gu;
+const clean = (text) => redact(mask(String(text).replace(ANSI, '').replace(UNSAFE, '')));
+
+// Why a session did not publish (SK18): the last lines of the screen, masked. Never answers it.
+async function screenReason(launcher, opened, id) {
+  if (typeof launcher.screen !== 'function') return 'Windows Terminal no deja leer su pantalla: mirala en esa pestaña';
+  const res = await launcher.screen(opened.handle);
+  if (!res.ok) return `no se pudo leer su pantalla: ${clean(res.error)}`;
+  const lines = (res.lines || []).map((l) => clean(l).trim()).filter(Boolean).slice(-SCREEN_LINES)
+    .map((l) => (l.length > SCREEN_LINE_MAX ? `${l.slice(0, SCREEN_LINE_MAX)}…` : l));
+  if (lines.length === 0) return 'su pantalla está vacía';
+  const text = `«${lines.join(' / ')}»`;
+  if (lines.some((l) => /update available/i.test(l))) {
+    return `Gentle Shell espera una respuesta en su pantalla (un aviso de actualización): ${text}; contestala vos en la terminal (sala mostrar ${id})`;
+  }
+  return `su pantalla muestra: ${text}`;
 }
 
 // One abrir at a time per sala: two would open two sessions or lose a record.
@@ -141,7 +166,8 @@ async function openMember(config, salaDir, member, chosen = null) {
   const session = await waitForSession(member, timeoutMs);
   if (!session) {
     const what = opened.handle ? `la terminal ${opened.handle}` : `la pestaña «${opened.title}»`;
-    throw new SalaError(`${id}: se abrió ${what}, pero Gentle Shell no publicó su sesión en ${timeoutMs / 1000} s`);
+    const reason = await screenReason(launcher, opened, id);
+    throw new SalaError(`${id}: se abrió ${what}, pero Gentle Shell no publicó su sesión en ${timeoutMs / 1000} s; ${reason}`);
   }
   saveRecord(salaDir, id, { ...record, session: session.id });
   return { member: id, action: 'opened', launcher: launcher.name, handle: opened.handle, title: opened.title, session: session.id };

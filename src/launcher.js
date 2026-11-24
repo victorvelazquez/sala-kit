@@ -68,6 +68,14 @@ const orca = {
     if (!res.ok) return { ok: false, error: `Orca no pudo mostrar la terminal: ${res.error}` };
     return { ok: true, shown: true };
   },
+  // The rendered screen of the terminal, as lines (SK18). Only reads: never sends a key.
+  async screen(handle) {
+    const res = await this.call(['terminal', 'read', '--terminal', handle, '--screen', '--json']);
+    if (!res.ok) return { ok: false, error: res.error };
+    const terminal = res.data.result && res.data.result.terminal;
+    const tail = terminal && Array.isArray(terminal.tail) ? terminal.tail : [];
+    return { ok: true, lines: tail.filter((line) => typeof line === 'string') };
+  },
   // Closes only the tab of that terminal (SK2a); the caller checks that its session ended.
   async close(record) {
     const res = await this.call(['terminal', 'close', '--terminal', record.handle, '--tab', '--json']);
