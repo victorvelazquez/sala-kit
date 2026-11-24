@@ -437,7 +437,10 @@ El formato de commits y PR de D23 lo revisa el kit antes de llamar al motor, en 
 
 Los comandos del miembro se cargan con el kit y se niegan fuera de un miembro (`sala donde`):
 
-- **`/miembro-tarea [ID]`** toma la tarea `ID` del roadmap, o la siguiente, comprueba que esté en su base limpia y al día y que la tarea esté lista, y la empieza; si falta algo, muestra un resumen y espera el OK. Nunca cambia de rama ni entrega.
+- **`/miembro-tarea [ID] [plan|directo]`** toma la tarea `ID` del roadmap, o la siguiente, comprueba que esté en su base limpia y al día y que la tarea esté lista, y la empieza; si falta algo, muestra un resumen y espera el OK. Nunca cambia de rama ni entrega. El modo lo elige la sala (D54):
+  - en `plan` no toca archivos: responde con el plan bajo cinco encabezados fijos (`### Qué entendí`, `### Plan`, `### Tamaño`, `### Decisiones abiertas`, `### Riesgos`, este con siete líneas de sí o no) y frena;
+  - en `directo` implementa sin preguntar; si encuentra algo inesperado, frena con `### Pido la puerta: <motivo>` y el plan;
+  - con modo, el reporte final va con `### Hecho`, `### Comprobado`, `### Sin comprobar` y `### Siguiente`. Sin modo, sigue como siempre.
 - **`/miembro-entregar [ID]`** hace el commit y el PR de la tarea terminada con `sala motor`, sin `/flow-*` ni `git commit`, y comprueba el PR con `gh`. Nunca fusiona.
 - **`/miembro-base`** vuelve a la rama base y la trae del remoto solo con avance rápido. Nunca borra ramas, ni guarda en el stash, ni fuerza nada.
 - **`/miembro-informe`** cuenta el avance del proyecto entero: lo hecho, lo en curso, lo pendiente en orden y el paso siguiente. Solo lee.
