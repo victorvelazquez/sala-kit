@@ -224,10 +224,10 @@ Después de mandar un comando, `sala veredicto` comprueba en JSON que haya dejad
 
 | Comando | Regla | Qué comprueba |
 |---|---|---|
-| `miembro-entregar` (y, de puente, `flow-ship` y `flow-pr`) | `entrega` | está en una rama que no es la base, el árbol está limpio, el último commit está en el remoto, hay un PR abierto de esa rama, su CI está en verde (o no tiene) y la fila de la tarea cuyo ID cierra el título del PR dice `Completada` en el roadmap del último commit (D45); además, `order`: ese ID es el de la última `/miembro-tarea <ID>` que la sala le mandó a ese miembro, leída de `.sala/ordenes.log`. Si no coincide, falla; sin una orden anotada con ID, avisa y no falla (SK32b) |
-| `miembro-base` (y, de puente, `flow-base`) | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto; si el miembro tiene `pnpm-lock.yaml` o `package-lock.json`, también que sus dependencias estén instaladas (`deps`, con la regla de `sala dependencias`) |
+| `miembro-entregar` | `entrega` | está en una rama que no es la base, el árbol está limpio, el último commit está en el remoto, hay un PR abierto de esa rama, su CI está en verde (o no tiene) y la fila de la tarea cuyo ID cierra el título del PR dice `Completada` en el roadmap del último commit (D45); además, `order`: ese ID es el de la última `/miembro-tarea <ID>` que la sala le mandó a ese miembro, leída de `.sala/ordenes.log`. Si no coincide, falla; sin una orden anotada con ID, avisa y no falla (SK32b) |
+| `miembro-base` | `base` | está en la base, el árbol está limpio, no hay stash y la base es igual a la del remoto; si el miembro tiene `pnpm-lock.yaml` o `package-lock.json`, también que sus dependencias estén instaladas (`deps`, con la regla de `sala dependencias`) |
 
-El comando va con o sin `/`, y lo que sigue al primer espacio no cuenta: `/flow-ship SK2d` es `flow-ship`. Como solo lee, también reconoce el comando cuando Git Bash lo convirtió en ruta (`C:/Program Files/Git/flow-ship`), sin hacer falta `MSYS_NO_PATHCONV=1`. Los nombres de las reglas (`entrega` y `base`) también sirven como comando. Los `/flow-*` son un puente: los miembros los usan hasta que la fase 5 los cambia por los `/miembro-*` (D26), y ahí se quitan. Cada comprobación sale con su `id`, si pasó y el motivo; `ok` es `true` solo si pasan todas. Después de una entrega, el JSON trae también la rama, el commit, el PR con su CI y el ID de la tarea.
+El comando va con o sin `/`, y lo que sigue al primer espacio no cuenta: `/miembro-entregar SK2d` es `miembro-entregar`. Como solo lee, también reconoce el comando cuando Git Bash lo convirtió en ruta (`C:/Program Files/Git/miembro-base`), sin hacer falta `MSYS_NO_PATHCONV=1`. Los nombres de las reglas (`entrega` y `base`) también sirven como comando. `flow-ship`, `flow-pr` y `flow-base` ya no tienen veredicto: eran un puente hasta los `/miembro-*` (D26) y se quitaron en SK5g. Cada comprobación sale con su `id`, si pasó y el motivo; `ok` es `true` solo si pasan todas. Después de una entrega, el JSON trae también la rama, el commit, el PR con su CI y el ID de la tarea.
 
 ## `sala dependencias`
 
@@ -459,7 +459,7 @@ Un paquete de pi no instala agentes (D34), así que `sala instalar` copia los de
 - **`al-dia`**: no la toca;
 - **`editada`** (el texto no coincide con su marca) o **`ajena`** (un archivo con ese nombre que el kit no escribió): **no la pisa**, salvo con `--forzar`, y sale con 1.
 
-Si no existe `~/.gentle-shell/agent`, se niega sin crear nada. No necesita una sala: los agentes son de la máquina. La sala manda estos comandos (`/sala-plan`, `/sala-seguir`, `/sala-entregar` y `sala fusionar`), nunca `/flow-*`. `sala veredicto` todavía acepta `flow-ship`, `flow-pr` y `flow-base` como puente, hasta SK5c.
+Si no existe `~/.gentle-shell/agent`, se niega sin crear nada. No necesita una sala: los agentes son de la máquina. La sala manda estos comandos (`/sala-plan`, `/sala-seguir`, `/sala-entregar` y `sala fusionar`), nunca `/flow-*`.
 
 ## Evals de conducta
 

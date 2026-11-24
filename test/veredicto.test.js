@@ -33,7 +33,7 @@ function pr(conclusion, title = 'feat: entrega (E1)') {
   ]);
 }
 
-test('after a delivery the verdict gives branch, commit, PR, CI and the task row, the same for its /flow-* bridge', (t) => {
+test('after a delivery the verdict gives branch, commit, PR, CI and the task row, and the /flow-* bridge is gone', (t) => {
   const dir = tempDir(t);
   const core = deliveredMember(dir, 'Completada');
   const sha = git(core.work, 'rev-parse', '--short', 'HEAD');
@@ -66,10 +66,14 @@ test('after a delivery the verdict gives branch, commit, PR, CI and the task row
     ],
   });
 
+  // The /flow-* bridge is gone (SK5g): the sala only sends /miembro-*.
   for (const alias of ['flow-ship', '/flow-pr']) {
-    const bridge = JSON.parse(runSala(dir, ['veredicto', 'core', alias], { FAKE_GH_OUT: pr('SUCCESS') }).stdout);
-    assert.deepEqual({ ...bridge, command: 'miembro-entregar' }, out, alias);
-    assert.equal(bridge.command, alias.replace('/', ''));
+    const gone = runSala(dir, ['veredicto', 'core', alias], { FAKE_GH_OUT: pr('SUCCESS') });
+    assert.equal(gone.code, 1, alias);
+    assert.equal(gone.stdout, '', alias);
+    assert.deepEqual(JSON.parse(gone.stderr), {
+      error: `${alias.replace('/', '')} no tiene veredicto; acepta miembro-entregar, miembro-base, entrega y base`,
+    });
   }
 });
 
@@ -147,7 +151,7 @@ test('a delivery without an open PR, or a PR title without the task ID, fails', 
   ]);
 });
 
-test('after going back to the base the verdict checks base, tree, stash and remote; /flow-base is its bridge', (t) => {
+test('after going back to the base the verdict checks base, tree, stash and remote', (t) => {
   const dir = tempDir(t);
   const core = memberRepo(dir, 'core');
   writeSala(dir, salaConfig([member('core', 'CORE', core.work)]));
@@ -169,15 +173,19 @@ test('after going back to the base the verdict checks base, tree, stash and remo
     ],
   });
 
-  // Git Bash turns `/flow-base` into a path before node sees it; read-only, so the verdict reads it back.
-  const bash = JSON.parse(runSala(dir, ['veredicto', 'core', 'C:/Program Files/Git/flow-base']).stdout);
-  assert.deepEqual({ command: bash.command, rule: bash.rule, ok: bash.ok }, { command: 'flow-base', rule: 'base', ok: true });
+  // Git Bash turns `/miembro-base` into a path before node sees it; read-only, so the verdict reads it back.
+  const bash = JSON.parse(runSala(dir, ['veredicto', 'core', 'C:/Program Files/Git/miembro-base']).stdout);
+  assert.deepEqual({ command: bash.command, rule: bash.rule, ok: bash.ok }, { command: 'miembro-base', rule: 'base', ok: true });
+  const gone = runSala(dir, ['veredicto', 'core', 'C:/Program Files/Git/flow-base']);
+  assert.equal(gone.code, 1);
+  assert.equal(gone.stdout, '');
+  assert.deepEqual(JSON.parse(gone.stderr), { error: 'flow-base no tiene veredicto; acepta miembro-entregar, miembro-base, entrega y base' });
 
   fs.writeFileSync(path.join(core.work, 'README.md'), 'cambio\n');
   git(core.work, 'stash', '--quiet');
   git(core.work, 'switch', '--quiet', '-c', 'feat');
   git(core.work, 'commit', '--quiet', '--allow-empty', '-m', 'local');
-  const res = runSala(dir, ['veredicto', 'core', '/flow-base']);
+  const res = runSala(dir, ['veredicto', 'core', '/miembro-base']);
   const out = JSON.parse(res.stdout);
   assert.equal(out.rule, 'base');
   assert.equal(out.ok, false);
@@ -186,9 +194,9 @@ test('after going back to the base the verdict checks base, tree, stash and remo
     { id: 'stash', ok: false, detail: 'hay 1 stash' },
   ]);
 
-  const text = runSala(dir, ['veredicto', 'core', 'flow-base', '--texto']).stdout;
+  const text = runSala(dir, ['veredicto', 'core', 'miembro-base', '--texto']).stdout;
   assert.equal(text, [
-    'Veredicto de core después de flow-base (base): FALLA',
+    'Veredicto de core después de miembro-base (base): FALLA',
     '  NO  branch  está en la rama feat, no en la base main',
     '  sí  clean   árbol limpio',
     '  NO  stash   hay 1 stash',
@@ -206,11 +214,11 @@ test('an unknown command, an unknown member or a missing command is refused with
   assert.equal(unknown.code, 1);
   assert.equal(unknown.stdout, '');
   assert.deepEqual(JSON.parse(unknown.stderr), {
-    error: 'flow-avance no tiene veredicto; acepta miembro-entregar, miembro-base, flow-ship, flow-pr, flow-base, entrega y base',
+    error: 'flow-avance no tiene veredicto; acepta miembro-entregar, miembro-base, entrega y base',
   });
 
   // Names every JavaScript object inherits are not commands; an odd command is never echoed raw.
-  const tail = 'acepta miembro-entregar, miembro-base, flow-ship, flow-pr, flow-base, entrega y base';
+  const tail = 'acepta miembro-entregar, miembro-base, entrega y base';
   for (const [name, error] of [
     ['constructor', `constructor no tiene veredicto; ${tail}`],
     ['toString', `toString no tiene veredicto; ${tail}`],
