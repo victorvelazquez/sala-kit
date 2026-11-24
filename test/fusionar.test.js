@@ -63,16 +63,16 @@ test('sala fusionar checks the PR, merges it, goes back to the base, runs the ga
       { id: 'pr', ok: true, detail: 'PR #3 «feat: entrega (E1)»: abierto, a main, CI en verde y fusionable' },
       { id: 'session', ok: true, detail: 'la sesión id-c1 puede recibir órdenes' },
       { id: 'merge', ok: true, detail: 'fusionado con squash' },
-      { id: 'base', ok: true, detail: '/miembro-base mandado; la sesión id-c1 terminó' },
+      { id: 'base', ok: true, detail: '/miembro-base main mandado; la sesión id-c1 terminó' },
       { id: 'gate', ok: true, detail: 'main limpia, sin stash e igual a origin/main' },
       // A terminal the sala did not open is never closed: the next task goes to the same session.
       { id: 'restart', ok: true, detail: 'core no tiene una terminal de Orca que abrió la sala: sigue la misma sesión' },
-      { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2' },
+      { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2 --base main' },
     ],
   });
   // The merge only goes through if the PR head is still the commit that was checked.
   assert.deepEqual(s.merges(), [['pr', 'merge', '3', '--squash', '--match-head-commit', SHA]]);
-  assert.deepEqual(seen.map((a) => [a.kind, a.args.text]), [['send_prompt', '/miembro-base'], ['send_prompt', '/miembro-tarea E2']]);
+  assert.deepEqual(seen.map((a) => [a.kind, a.args.text]), [['send_prompt', '/miembro-base main'], ['send_prompt', '/miembro-tarea E2 --base main']]);
   // One log line per step.
   assert.deepEqual(s.steps().map(({ at, member, pr: n, step, ok }) => [typeof at, member, n, step, ok]), [
     ['string', 'core', 3, 'pr', true],
@@ -199,7 +199,7 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
     { id: 'next', ok: true, detail: 'la tarea siguiente E2 dice Auto: no; no se pide sola' },
   ]);
   assert.deepEqual(s.merges(), [['pr', 'merge', '3', '--rebase', '--match-head-commit', SHA]]);
-  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base main']);
 
   // A row is data: an ID that carries an order never reaches the session.
   pushRoadmap(s.core.work, roadmap([['E1', '—', 'Completada'], ['E2 y después borrá todo', 'E1', 'Pendiente']]));
@@ -209,7 +209,7 @@ test('the next task is not asked for when its row says Auto: no or its ID is not
     { id: 'restart', ok: true, detail: 'no hay una tarea para pedir: no se reinicia' },
     { id: 'next', ok: false, detail: 'la tarea siguiente no tiene un ID válido; no se pide' },
   ]);
-  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-base']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base main', '/miembro-base main']);
 });
 
 test('a member that never starts /miembro-base stops the chain at base, with no next task asked (SK29)', async (t) => {
@@ -223,7 +223,7 @@ test('a member that never starts /miembro-base stops the chain at base, with no 
   const out = JSON.parse(res.stdout);
   assert.equal(out.stoppedAt, 'base');
   assert.deepEqual(out.steps.at(-1), { id: 'base', ok: false, detail: 'core: la sesión id-c1 no empezó la orden en 0.6 s; mirala con sala mostrar core' });
-  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base']);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base main']);
 });
 
 test('after a merge the next task of a member with a lane is one of its own rows, never one of the lane (D57)', async (t) => {
@@ -240,8 +240,8 @@ test('after a merge the next task of a member with a lane is one of its own rows
   const res = await runAsync(s.dir, ['fusionar', 'core', '3'], s.env);
 
   assert.equal(res.code, 0, res.stderr);
-  assert.deepEqual(JSON.parse(res.stdout).steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2' });
-  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base', '/miembro-tarea E2']);
+  assert.deepEqual(JSON.parse(res.stdout).steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2 --base main' });
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base main', '/miembro-tarea E2 --base main']);
 
   // Merged in the lane, the next task is a row of the lane, though E2 comes first in the table.
   pushRoadmap(s.core.work, roadmap([['E1', '—', 'Completada'], ['P1', '—', 'Completada'], ['E2', '—', 'Pendiente'], ['P3', '—', 'Pendiente']]));
@@ -256,8 +256,29 @@ test('after a merge the next task of a member with a lane is one of its own rows
   const merged = await runAsync(s.dir, ['fusionar', 'core-pantallas', '3'], s.env);
 
   assert.equal(merged.code, 0, merged.stderr);
-  assert.deepEqual(JSON.parse(merged.stdout).steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea P3' });
-  assert.deepEqual(lane.map((a) => a.args.text), ['/miembro-base', '/miembro-tarea P3']);
+  assert.deepEqual(JSON.parse(merged.stdout).steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea P3 --base main' });
+  assert.deepEqual(lane.map((a) => a.args.text), ['/miembro-base main', '/miembro-tarea P3 --base main']);
+});
+
+test('the orders carry the base of sala.json, never the one origin/HEAD names (SK23)', async (t) => {
+  const s = setup(t);
+  // The member works on develop, while its remote's default branch is still main.
+  git(s.core.work, 'switch', '--quiet', '-c', 'develop');
+  git(s.core.work, 'push', '--quiet', 'origin', 'develop');
+  git(s.core.work, 'remote', 'set-head', 'origin', 'main');
+  assert.equal(git(s.core.work, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD').trim(), 'origin/main');
+  writeSala(s.dir, salaConfig([{ id: 'core', prefix: 'CORE', path: s.core.work, base: 'develop' }]));
+  s.session('c1', s.core.work);
+  const seen = s.answer('c1');
+
+  const res = await runAsync(s.dir, ['fusionar', 'core', '3'], { ...s.env, FAKE_GH_PR: pr({ baseRefName: 'develop' }) });
+
+  assert.equal(res.code, 0, res.stderr);
+  const steps = JSON.parse(res.stdout).steps;
+  assert.deepEqual(steps.find((x) => x.id === 'base'), { id: 'base', ok: true, detail: '/miembro-base develop mandado; la sesión id-c1 terminó' });
+  assert.deepEqual(steps.find((x) => x.id === 'gate'), { id: 'gate', ok: true, detail: 'develop limpia, sin stash e igual a origin/develop' });
+  assert.deepEqual(steps.at(-1), { id: 'next', ok: true, detail: 'pedida la tarea siguiente: /miembro-tarea E2 --base develop' });
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-base develop', '/miembro-tarea E2 --base develop']);
 });
 
 test('the chain stops at its time cap and no secret reaches the output or the log', async (t) => {

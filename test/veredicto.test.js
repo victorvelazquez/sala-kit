@@ -103,6 +103,13 @@ test('a delivery of a task the sala did not ask for fails; only the last task or
   const unknown = order();
   assert.equal(unknown.ok, true);
   assert.deepEqual(unknown.checks.at(-1), { id: 'order', ok: true, detail: 'aviso: la sala no le anotó a core una orden /miembro-tarea con ID; no se compara' });
+
+  // The base the sala passes along (SK23) is never the ID: E1 --base main asks for E1, and
+  // --base main alone names no row.
+  logOrders(dir, [['core', '/miembro-tarea E1 --base main']]);
+  assert.deepEqual(order().checks.at(-1), { id: 'order', ok: true, detail: 'la sala le pidió E1' });
+  logOrders(dir, [['core', '/miembro-tarea --base main']]);
+  assert.deepEqual(order().checks.at(-1), { id: 'order', ok: true, detail: 'aviso: la sala no le anotó a core una orden /miembro-tarea con ID; no se compara' });
 });
 
 test('a delivery with red CI, an unmarked row and an unpushed commit fails and says why', (t) => {

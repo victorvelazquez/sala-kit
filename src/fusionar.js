@@ -23,9 +23,10 @@ const SHA = /^[0-9a-f]{40}$/;
 const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
 // `Auto: no`, also in bold (`**Auto:** no`).
 const AUTO_NO = /\bAuto:\**\s*no\b/i;
-// The member commands of the kit (D21), never /flow-*.
-const BASE_ORDER = '/miembro-base';
-const NEXT_ORDER = '/miembro-tarea';
+// The member commands of the kit (D21), never /flow-*. They carry the base of sala.json (SK23):
+// the member goes back to it even when origin/HEAD names another branch.
+const baseOrder = (member) => `/miembro-base ${member.base}`;
+const nextOrder = (member, id) => `/miembro-tarea ${id} --base ${member.base}`;
 // The repo decides the method; squash first, like the sala's own repos.
 const METHODS = [['squashMergeAllowed', 'squash'], ['rebaseMergeAllowed', 'rebase'], ['mergeCommitAllowed', 'merge']];
 
@@ -87,7 +88,7 @@ async function checkPr(ctx) {
 
 // Step 2: after the merge the sala must be able to send orders, so it checks the session first.
 async function checkSession(ctx) {
-  const found = guard(ctx.config, ctx.salaDir, ctx.member.id, BASE_ORDER);
+  const found = guard(ctx.config, ctx.salaDir, ctx.member.id, baseOrder(ctx.member));
   return `la sesión ${found.session.id} puede recibir órdenes`;
 }
 
@@ -116,12 +117,12 @@ async function merge(ctx) {
 // Step 4: the member's own session goes back to its base.
 async function backToBase(ctx) {
   const { config, salaDir, member } = ctx;
-  const sent = await enviar(config, salaDir, member.id, BASE_ORDER);
+  const sent = await enviar(config, salaDir, member.id, baseOrder(member));
   const done = await esperar(config, salaDir, member.id);
   if (done.state === 'needs-you') {
     throw new StepError(`${member.id} te necesita${done.question ? `: «${done.question}»` : ''}; contestale y corré la puerta`);
   }
-  return `${BASE_ORDER} mandado; la sesión ${sent.session} terminó`;
+  return `${baseOrder(member)} mandado; la sesión ${sent.session} terminó`;
 }
 
 // Step 5: the gate, with the verdict of going back to the base.
@@ -144,7 +145,7 @@ async function pickNext(ctx) {
   const row = read.rows ? read.rows.find((r) => r.id === mine.next.id) : null;
   if (!row) return { error: `no se pudo releer la fila ${mine.next.id}` };
   if (AUTO_NO.test(row.notas)) return { skip: `la tarea siguiente ${row.id} dice Auto: no; no se pide sola` };
-  return { order: `${NEXT_ORDER} ${row.id}` };
+  return { order: nextOrder(member, row.id) };
 }
 
 // Step 6 (D29): the next task starts in a clean session, when the sala opened the terminal.

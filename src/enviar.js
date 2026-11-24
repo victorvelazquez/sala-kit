@@ -78,6 +78,12 @@ function guard(config, salaDir, id, text) {
 
 // `/miembro-tarea [ID] [modo]`, read loosely: case, format characters and spaces never hide it.
 const TASK_ORDER = /^\/miembro-tarea(?:\s+(\S+))?(?:\s|$)/i;
+// The base the sala passes along (SK23), `--base <rama>`, is never read as the ID.
+const BASE_ARG = /(^|\s)--base(?=\s|$)(?:\s+\S+)?/gi;
+
+function readTaskOrder(text) {
+  return TASK_ORDER.exec(text.replace(/\p{Cf}/gu, '').trim().replace(BASE_ARG, '$1').trim());
+}
 
 // The rows an ID argument names: quotes and trailing punctuation go, a list splits, and the
 // member prefix goes as many times as it is written (ERP-ERP-DM0), in any case.
@@ -99,7 +105,7 @@ function laneRefusal(config, id, text) {
   const main = member.lane ? member.lane.of : member.id;
   const lanes = config.members.filter((m) => m.lane && m.lane.of === main);
   if (lanes.length === 0) return null;
-  const match = TASK_ORDER.exec(text.replace(/\p{Cf}/gu, '').trim());
+  const match = readTaskOrder(text);
   if (!match) return null;
   // Without an ID the member takes the first Pendiente row of the shared roadmap, of any lane.
   if (!match[1]) {
@@ -243,4 +249,4 @@ function respuestaTexto(r) {
   return `${r.member}: última respuesta de la sesión ${r.session} (${r.at || 'sin hora'})\n\n${r.text}${clipped}\n`;
 }
 
-module.exports = { TASK_ORDER, namedRows, enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto, logOrder, guard, paused, onlySession, unreadable };
+module.exports = { readTaskOrder, namedRows, enviar, enviarTexto, esperar, esperarTexto, respuesta, respuestaTexto, logOrder, guard, paused, onlySession, unreadable };

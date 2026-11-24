@@ -252,3 +252,24 @@ test('sala soltar of a lane keeps the pinned tasks of its member, and its member
   assert.deepEqual(after.members.map((m) => m.id), ['erp']);
   assert.deepEqual(after.pinned, ['ERP-DM0', 'ERP-B10']);
 });
+
+test('with lanes, --base is never taken as the ID of a /miembro-tarea (SK23)', async (t) => {
+  const s = laneFeed(t);
+  s.session('c1', s.core);
+  const seen = s.answer('c1');
+  const send = (id, text) => runAsync(s.dir, ['enviar', id, text], s.env);
+  for (const [id, error] of [
+    ['core', 'core: tiene carriles: /miembro-tarea va con el ID de la fila, el que da sala plan'],
+    ['core-pantallas', 'core-pantallas: es un carril: /miembro-tarea va con el ID de la fila, el que da sala plan'],
+  ]) {
+    const res = await send(id, '/miembro-tarea --base main');
+    assert.equal(res.code, 1, id);
+    assert.deepEqual(JSON.parse(res.stderr), { error }, id);
+  }
+  const lane = await send('core', '/miembro-tarea P1 --base main');
+  assert.equal(lane.code, 1);
+  assert.deepEqual(JSON.parse(lane.stderr), { error: 'core: P1 es una fila del carril core-pantallas; mandásela a core-pantallas' });
+  const own = await send('core', '/miembro-tarea E1 --base main');
+  assert.equal(own.code, 0, own.stderr);
+  assert.deepEqual(seen.map((a) => a.args.text), ['/miembro-tarea E1 --base main']);
+});

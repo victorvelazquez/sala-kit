@@ -58,7 +58,7 @@ async function nextStep(m, planned, salaDir, member) {
     }
     const merged = await mergedPr(m.path, m.branch);
     if (merged !== null) {
-      return step(id, 'base', `el PR #${merged} de la rama ${redact(m.branch)} ya se fusionó`, `sala enviar ${id} /miembro-base`);
+      return step(id, 'base', `el PR #${merged} de la rama ${redact(m.branch)} ya se fusionó`, `sala enviar ${id} "/miembro-base ${m.base}"`);
     }
     return step(id, 'entregar', `está en la rama ${redact(m.branch)} sin PR abierto`, `/sala-entregar ${id}`);
   }
@@ -66,7 +66,7 @@ async function nextStep(m, planned, salaDir, member) {
   if (!m.fetch.ok) return step(id, 'revisar', `no se pudo traer ${m.remote}/${m.base}: ${m.fetch.error}`);
   if (m.stash > 0) return step(id, 'revisar', `hay ${m.stash} stash en la base`);
   if (m.ahead > 0) return step(id, 'revisar', `${m.base} tiene ${commits(m.ahead)} sin subir a ${m.remote}/${m.base}`);
-  if (m.behind > 0) return step(id, 'base', `${m.base} está ${commits(m.behind)} detrás de ${m.remote}/${m.base}`, `sala enviar ${id} /miembro-base`);
+  if (m.behind > 0) return step(id, 'base', `${m.base} está ${commits(m.behind)} detrás de ${m.remote}/${m.base}`, `sala enviar ${id} "/miembro-base ${m.base}"`);
   if (planned && planned.next) return step(id, 'tarea', `su tarea siguiente es ${planned.next.id}`, `/sala-seguir ${id}`);
   if (planned && planned.error) return step(id, 'revisar', `no se pudo leer su roadmap (${planned.error})`);
   return step(id, 'libre', 'no tiene una tarea lista en su roadmap');
