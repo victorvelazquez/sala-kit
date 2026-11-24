@@ -121,6 +121,7 @@ test('a member with old blocks is adopted with a warning (D52)', (t) => {
 
   assert.equal(res.code, 0, res.stderr);
   assert.deepEqual(JSON.parse(res.stdout).warnings, [
+    'core: el bloque del miembro no nombra su sala; `sala condiciones core` le manda la orden de ponerse al día',
     'core: AGENTS.md tiene bloques viejos: panel:entrega v1.0 (el kit trae v1.1); `sala condiciones core` le manda la orden de ponerse al día',
   ]);
 });
@@ -155,21 +156,21 @@ test('sala unirse puts the member block in AGENTS.md, adding it after the own ru
   const fresh = path.join(dir, 'fresh');
   fs.mkdirSync(fresh);
 
-  const res = runSala(fresh, ['unirse']);
+  const res = runSala(fresh, ['unirse', '--de', 'prueba']);
   assert.equal(res.code, 0, res.stderr);
   assert.deepEqual(JSON.parse(res.stdout), { dir: fresh, created: ['AGENTS.md'], updated: [], skipped: [], warnings: [] });
   const agents = read(fresh, 'AGENTS.md');
   assert.ok(agents.indexOf(START) < agents.indexOf(END) && agents.indexOf(START) > 0);
   assert.equal(JSON.parse(runSala(fresh, ['donde']).stdout).kind, 'miembro');
 
-  const again = JSON.parse(runSala(fresh, ['unirse']).stdout);
+  const again = JSON.parse(runSala(fresh, ['unirse', '--de', 'prueba']).stdout);
   assert.deepEqual(again.skipped, [{ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro y los bloques al día' }]);
   assert.equal(read(fresh, 'AGENTS.md'), agents);
 
   const own = path.join(dir, 'own');
   fs.mkdirSync(own);
   fs.writeFileSync(path.join(own, 'AGENTS.md'), '# Reglas\n\n- Nunca abras un PR.\n');
-  const out = JSON.parse(runSala(own, ['unirse']).stdout);
+  const out = JSON.parse(runSala(own, ['unirse', '--de', 'prueba']).stdout);
   assert.deepEqual(out, { dir: own, created: [], updated: ['miembro'], skipped: [], warnings: [] });
   assert.equal(read(own, 'AGENTS.md'), `# Reglas\n\n- Nunca abras un PR.\n\n${agents.slice(agents.indexOf(START))}`);
   assert.deepEqual(fs.readdirSync(own), ['AGENTS.md']);
@@ -177,7 +178,7 @@ test('sala unirse puts the member block in AGENTS.md, adding it after the own ru
   const half = path.join(dir, 'half');
   fs.mkdirSync(half);
   fs.writeFileSync(path.join(half, 'AGENTS.md'), `# Reglas\n${START}\nsin fin\n`);
-  const broken = runSala(half, ['unirse']);
+  const broken = runSala(half, ['unirse', '--de', 'prueba']);
   assert.equal(broken.code, 1);
   assert.match(JSON.parse(broken.stderr).error, /marcas del bloque del miembro repetidas, sin cerrar o al revés/);
   assert.deepEqual(fs.readdirSync(half), ['AGENTS.md']);
@@ -185,7 +186,7 @@ test('sala unirse puts the member block in AGENTS.md, adding it after the own ru
   const sala = path.join(dir, 'sala');
   assert.equal(runSala(dir, ['init', '--sala', sala]).code, 0);
   const saved = read(sala, 'AGENTS.md');
-  const refused = runSala(sala, ['unirse']);
+  const refused = runSala(sala, ['unirse', '--de', 'prueba']);
   assert.equal(refused.code, 1);
   assert.match(JSON.parse(refused.stderr).error, /es una sala: unirse no la convierte en miembro/);
   assert.equal(read(sala, 'AGENTS.md'), saved);
@@ -195,10 +196,10 @@ test('sala revisar checks the member block and requires no old blocks (D52)', (t
   const dir = tempDir(t);
   const block = (name, version, body = 'x') => `<!-- ${name} ${version} -->\n${body}\n<!-- /${name} -->\n`;
   const agents = {
-    core: `# Reglas\n\n${START}\nbloque\n${END}\n`,
+    core: `# Reglas\n\n${START}\n<!-- sala-kit:sala=prueba -->\nbloque\n${END}\n`,
     web: `# Reglas\n${block('panel:entrega', 'v1.0')}${block('orquestacion:ciclo', 'v1.0')}`,
-    api: `# Reglas\n${block('panel:tareas', 'v2.0')}${block('panel:entrega', 'v1.1', 'editado')}${START}\nb\n${END}\n`,
-    bad: `# Reglas\n<!-- panel:tareas v1.3 -->\nsin fin\n${START}\nb\n${END}\n`,
+    api: `# Reglas\n${block('panel:tareas', 'v2.0')}${block('panel:entrega', 'v1.1', 'editado')}${START}\n<!-- sala-kit:sala=prueba -->\nb\n${END}\n`,
+    bad: `# Reglas\n<!-- panel:tareas v1.3 -->\nsin fin\n${START}\n<!-- sala-kit:sala=prueba -->\nb\n${END}\n`,
   };
   const repos = Object.keys(agents).map((id) => {
     const repo = memberRepo(dir, id);
@@ -213,7 +214,7 @@ test('sala revisar checks the member block and requires no old blocks (D52)', (t
   const req = (m, id) => m.requirements.find((r) => r.id === id);
   assert.equal(c.ok, true);
   assert.deepEqual(c.warnings, []);
-  assert.deepEqual(req(c, 'member-block'), { id: 'member-block', ok: true, detail: 'AGENTS.md tiene el bloque del miembro', fix: null });
+  assert.deepEqual(req(c, 'member-block'), { id: 'member-block', ok: true, detail: 'AGENTS.md tiene el bloque del miembro de la sala prueba', fix: null });
   assert.deepEqual(req(c, 'old-blocks'), { id: 'old-blocks', ok: true, detail: 'AGENTS.md no tiene bloques viejos', fix: null });
   assert.equal(req(w, 'member-block').ok, false);
   assert.equal(req(w, 'member-block').detail, 'AGENTS.md no tiene el bloque del miembro');
@@ -245,7 +246,7 @@ function condicionesSala(t) {
 test('sala condiciones sends the member the order to meet what fails, and only that', async (t) => {
   const s = condicionesSala(t);
   pushFiles(s.core, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': '# Reglas\n<!-- panel:entrega v1.0 -->\nSolo /flow-*.\n<!-- /panel:entrega -->\n' });
-  pushFiles(s.web, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': `# Reglas\n${START}\nb\n${END}\n` });
+  pushFiles(s.web, { 'docs/ROADMAP.md': `${HEADER}\n${TABLE}`, 'AGENTS.md': `# Reglas\n${START}\n<!-- sala-kit:sala=prueba -->\nb\n${END}\n` });
   s.session('c1', s.core);
   s.session('w1', s.web);
   const seen = s.answer('c1');

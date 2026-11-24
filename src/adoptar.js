@@ -10,7 +10,7 @@ const { validateConfig, ConfigError } = require('./config');
 const { findMember, SalaError } = require('./abrir');
 const { reviewMember } = require('./revisar');
 const { enviar } = require('./enviar');
-const { oldBlocks, staleDetail, MEMBER_START, MEMBER_END } = require('./requisitos');
+const { oldBlocks, staleDetail, blockSala, SALA_NAME, MEMBER_START, MEMBER_END } = require('./requisitos');
 const { template, readText, create } = require('./init');
 const { upgradeAgents } = require('./bloques');
 
@@ -80,15 +80,21 @@ async function adoptar(config, salaDir, folder, flags = {}) {
   const prefix = flags.prefijo || id.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!flags.prefijo && !/^[A-Z]/.test(prefix)) throw new ConfigError('no se pudo deducir el prefijo; usá --prefijo <PREFIJO>');
 
+  // The working tree is only read: to refuse a member of another sala (D56) and to warn.
+  // The requirements read the remote base (sala revisar).
+  const agents = readText(path.join(real, 'AGENTS.md'));
+  const owner = blockSala(agents);
+  if (owner && owner !== config.name) throw new ConfigError(`${path.basename(real)} ya es miembro de la sala ${owner}`);
+
   const member = { id, prefix, path: real, base, remote };
   const raw = readRaw(salaDir);
   writeRaw(salaDir, { ...raw, members: [...raw.members, member] });
 
-  // The working tree is only read, to warn: the requirements read the remote base (sala revisar).
-  const agents = readText(path.join(real, 'AGENTS.md'));
   const warnings = [];
-  if (agents === null || !agents.includes(MEMBER_START) || !agents.includes(MEMBER_END)) {
+  if (owner === undefined) {
     warnings.push(`${id}: no tiene el bloque del miembro en AGENTS.md; \`sala condiciones ${id}\` le manda la orden de ponerse en condiciones`);
+  } else if (owner === null) {
+    warnings.push(`${id}: el bloque del miembro no nombra su sala; \`sala condiciones ${id}\` le manda la orden de ponerse al día`);
   }
   const stale = staleDetail(agents);
   if (stale) warnings.push(`${id}: ${stale}; \`sala condiciones ${id}\` le manda la orden de ponerse al día`);
@@ -122,28 +128,42 @@ function soltarTexto(r) {
   return `${r.member} ya no es miembro de la sala; su repositorio en ${r.path} quedó igual${pins}\n`;
 }
 
-function memberBlock() {
-  return `${MEMBER_START}\n${template('bloque.md', 'miembro')}${MEMBER_END}\n`;
+// The block names its sala (D56); without a name, the line and the sentence that use it go.
+function memberBlock(sala) {
+  let body = template('bloque.md', 'miembro');
+  body = sala ? body.replaceAll('{{SALA}}', sala) : body.split('\n').filter((l) => !l.includes('{{SALA}}')).join('\n');
+  return `${MEMBER_START}\n${body}${MEMBER_END}\n`;
 }
 
 // Run inside the member, by its own session (D41, D52): the member block and the old blocks
 // of the catalog are written only between their marks, and the member block goes at the end
 // when it is missing. Outside the marks not a byte changes.
-function unirse(dir) {
+// `de` names the sala (D56); without it the block keeps the sala it already names.
+function unirse(dir, de) {
+  if (de !== undefined && !SALA_NAME.test(de)) {
+    throw new ConfigError('--de necesita el nombre de la sala: letras, números, punto, guion o guion bajo, hasta 64, sin empezar con guion');
+  }
   if (fs.existsSync(path.join(dir, 'sala.json'))) throw new ConfigError(`${dir} es una sala: unirse no la convierte en miembro`);
   const file = path.join(dir, 'AGENTS.md');
   const current = readText(file);
+  const owner = blockSala(current);
+  if (owner && de && owner !== de) {
+    throw new ConfigError(`AGENTS.md ya tiene el bloque de la sala ${owner}: un repositorio es miembro de una sola sala (D56); para cambiarlo, la persona saca el bloque a mano`);
+  }
+  const sala = de || owner || null;
   const report = { dir, created: [], updated: [], skipped: [], warnings: [] };
+  const unnamed = 'el bloque del miembro no nombra su sala: corré `sala unirse --de <sala>` con el name de su sala.json';
   if (current === null) {
-    create(dir, 'AGENTS.md', `# Reglas para agentes\n\n${memberBlock()}`, report);
+    create(dir, 'AGENTS.md', `# Reglas para agentes\n\n${memberBlock(sala)}`, report);
+    if (!sala) report.warnings.push(unnamed);
     return report;
   }
-  const next = upgradeAgents(current, memberBlock(), [MEMBER_START, MEMBER_END]);
+  const next = upgradeAgents(current, memberBlock(sala), [MEMBER_START, MEMBER_END]);
   if (next.broken) {
     const name = next.broken === 'miembro' ? 'del miembro' : next.broken;
     throw new ConfigError(`AGENTS.md tiene las marcas del bloque ${name} repetidas, sin cerrar o al revés; arreglalas a mano y volvé a correr sala unirse`);
   }
-  report.warnings = next.warnings;
+  report.warnings = sala ? next.warnings : [...next.warnings, unnamed];
   if (next.updated.length === 0) {
     report.skipped.push({ file: 'AGENTS.md', reason: 'ya tiene el bloque del miembro y los bloques al día' });
     return report;
@@ -173,9 +193,12 @@ function unirseTexto(r) {
 // The order to meet what fails, built from the catalog, sent with the guards of sala enviar.
 async function condiciones(config, salaDir, id) {
   const member = findMember(config, id);
-  const review = await reviewMember(member);
+  const review = await reviewMember(member, config.name);
   const [base] = review.requirements;
   if (base.ok !== true) throw new SalaError(`${id}: primero corregí la base y el remoto en sala.json: ${base.detail}`);
+  // D56: the block, read from the remote base, names another sala; only that sala sends it orders.
+  const other = /^el bloque del miembro es de la sala (.+), no de /.exec(review.requirements.find((r) => r.id === 'member-block').detail);
+  if (other) throw new SalaError(`${id} es miembro de la sala ${other[1]}: esta sala no le manda órdenes (D56)`);
   const failing = review.requirements.filter((r) => r.ok === false);
   if (failing.length === 0) return { member: id, failing: [], sent: false, session: null };
   const text = [

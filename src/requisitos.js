@@ -89,10 +89,30 @@ function agentsSize(text) {
     `Recortá AGENTS.md por debajo de ${AGENTS_MAX_KB} KB: pasá a docs/ lo que no es una regla para agentes.`);
 }
 
-function memberBlock(text) {
-  const ok = text !== null && text.includes(MEMBER_START) && text.includes(MEMBER_END);
-  return result('member-block', ok, `AGENTS.md ${ok ? 'tiene' : 'no tiene'} el bloque del miembro`,
-    'En una tarea propia, corré `sala unirse` en la raíz del repositorio: pone el bloque del miembro y los bloques viejos al día, solo entre sus marcas. Si una regla de AGENTS.md fuera de las marcas choca con el bloque, mostrale a la persona el cambio exacto y aplicalo solo con su OK. Entregalo con su PR.');
+// D56: the member block names its sala on a line of its own, between the member marks.
+const SALA_LINE = /<!-- sala-kit:sala=(\S*) -->/;
+const SALA_NAME = /^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$/;
+
+// The sala the member block names: undefined without a block, null when it names none.
+function blockSala(text) {
+  if (text === null) return undefined;
+  const start = text.indexOf(MEMBER_START);
+  const end = text.indexOf(MEMBER_END, start);
+  if (start === -1 || end === -1) return undefined;
+  const found = SALA_LINE.exec(text.slice(start, end));
+  return found ? version(found[1]) : null;
+}
+
+function memberBlock(text, sala) {
+  const unirse = (cmd) => `En una tarea propia, corré \`${cmd}\` en la raíz del repositorio: pone el bloque del miembro y los bloques viejos al día, solo entre sus marcas. Si una regla de AGENTS.md fuera de las marcas choca con el bloque, mostrale a la persona el cambio exacto y aplicalo solo con su OK. Entregalo con su PR.`;
+  const named = blockSala(text);
+  if (named === undefined) return result('member-block', false, 'AGENTS.md no tiene el bloque del miembro', unirse(`sala unirse --de ${sala}`));
+  if (named === null) return result('member-block', false, 'el bloque del miembro no nombra su sala', unirse(`sala unirse --de ${sala}`));
+  if (named !== sala) {
+    return result('member-block', false, `el bloque del miembro es de la sala ${named}, no de ${sala}`,
+      `Un repositorio es miembro de una sola sala (D56) y esta no le manda órdenes. Decide la persona: sacarlo de esta sala con \`sala soltar\`, o sacar a mano el bloque de la otra y correr \`sala unirse --de ${sala}\`.`);
+  }
+  return result('member-block', true, `AGENTS.md tiene el bloque del miembro de la sala ${sala}`, null);
 }
 
 // The old blocks we wrote before the sala (D52) fail until sala unirse brings them up to date.
@@ -129,11 +149,11 @@ function oldBlocks(text) {
 }
 
 // files: { roadmap, agents } as text, or null when the file is missing.
-function memberRequirements(files, where) {
+function memberRequirements(files, where, sala) {
   return [
     ...roadmapChecks(files.roadmap, where),
     agentsSize(files.agents),
-    memberBlock(files.agents),
+    memberBlock(files.agents, sala),
     noOldBlocks(files.agents),
     noSecrets([['AGENTS.md', files.agents]]),
   ];
@@ -141,6 +161,8 @@ function memberRequirements(files, where) {
 
 module.exports = {
   memberRequirements,
+  blockSala,
+  SALA_NAME,
   oldBlocks,
   strayWarnings,
   staleDetail,
